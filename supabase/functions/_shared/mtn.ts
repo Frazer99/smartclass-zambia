@@ -1,7 +1,13 @@
 const MTN_API_URL = "https://sandbox.momodeveloper.mtn.com";
 
 function required(name: string): string {
-  const value = Deno.env.get(name);
+  const aliases: Record<string, string> = {
+    MTN_MOMO_API_USER: "MTN_API_USER",
+    MTN_MOMO_API_KEY: "MTN_API_KEY",
+    MTN_MOMO_SUBSCRIPTION_KEY: "MTN_SUBSCRIPTION_KEY",
+    MTN_MOMO_TARGET_ENV: "MTN_TARGET_ENVIRONMENT",
+  };
+  const value = Deno.env.get(name) || (aliases[name] ? Deno.env.get(aliases[name]) : undefined);
   if (!value) throw new Error(`${name} is not configured`);
   return value;
 }
@@ -11,12 +17,16 @@ function apiUrl(path: string): string {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
+function targetEnvironment(): string {
+  return Deno.env.get("MTN_MOMO_TARGET_ENV") || Deno.env.get("MTN_TARGET_ENVIRONMENT") || "sandbox";
+}
+
 function headers(subscriptionKey: string, accessToken?: string, referenceId?: string): HeadersInit {
   return {
     "Content-Type": "application/json",
     Accept: "application/json",
     "Ocp-Apim-Subscription-Key": subscriptionKey,
-    "X-Target-Environment": Deno.env.get("MTN_MOMO_TARGET_ENV") || "sandbox",
+    "X-Target-Environment": targetEnvironment(),
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     ...(referenceId ? { "X-Reference-Id": referenceId } : {}),
   };
@@ -30,7 +40,7 @@ async function getAccessToken(): Promise<string> {
     headers: {
       Authorization: `Basic ${credentials}`,
       "Ocp-Apim-Subscription-Key": subscriptionKey,
-      "X-Target-Environment": Deno.env.get("MTN_MOMO_TARGET_ENV") || "sandbox",
+      "X-Target-Environment": targetEnvironment(),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
