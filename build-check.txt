@@ -1,0 +1,57 @@
+
+> nextjs@0.1.0 build
+> next build
+
+   Creating an optimized production build...
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ Compiled successfully
+   Skipping linting
+   Checking validity of types...
+   Collecting page data...
+   Generating static pages (0/19)...
+   Generating static pages (4/19)
+
+   Generating static pages (9/19)
+
+   Generating static pages (14/19)
+
+ ✓ Generating static pages (19/19)
+   Finalizing page optimization...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    4.85 kB         149 kB
+├ ○ /_not-found                          872 B          80.2 kB
+├ ○ /account                             3.46 kB         155 kB
+├ ○ /admin                               26.6 kB         301 kB
+├ ○ /admin/login                         3.32 kB         163 kB
+├ ○ /dashboard                           6.37 kB         157 kB
+├ ○ /forgot-password                     2.56 kB         162 kB
+├ ○ /icon.svg                            0 B                0 B
+├ λ /lesson/[id]                         7.29 kB         282 kB
+├ ○ /login                               3.38 kB         163 kB
+├ ○ /onboarding                          3.71 kB         156 kB
+├ ○ /past-papers                         3.67 kB         155 kB
+├ λ /past-papers/[id]                    2.36 kB         146 kB
+├ λ /past-papers/[id]/run                4.92 kB         271 kB
+├ λ /practice/[id]                       5.4 kB          149 kB
+├ ○ /progress                            4.87 kB         156 kB
+├ ○ /progress/report                     3.87 kB         148 kB
+├ ○ /register                            3.6 kB          163 kB
+├ ○ /reset-password                      2.65 kB         162 kB
+├ ○ /subscribe                           2.13 kB         161 kB
+├ ○ /subscribe/complete                  1.78 kB         153 kB
+└ λ /topic/[id]                          3.94 kB         148 kB
++ First Load JS shared by all            79.3 kB
+  ├ chunks/864-e7adc50326003d08.js       26.5 kB
+  ├ chunks/fd9d1056-154ebacd473034e5.js  50.9 kB
+  ├ chunks/main-app-7c5d07bf966ab208.js  219 B
+  └ chunks/webpack-32f844c64806f098.js   1.73 kB
+
+
+ƒ Middleware                             26.7 kB
+
+λ  (Server)  server-side renders at runtime (uses getInitialProps or getServerSideProps)
+○  (Static)  automatically rendered as static HTML (uses no initial props)
+

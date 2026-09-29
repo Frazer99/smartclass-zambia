@@ -1,0 +1,5 @@
+[functions.content-materials]
+verify_jwt = false
+
+[functions.ingest-material]
+verify_jwt = false

@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Caveat:wght@500;600&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --board: 158 37% 14%;
+    --board-deep: 158 38% 9%;
+    --chalk: 46 27% 94%;
+    --gold: 41 76% 60%;
+    --gold-deep: 38 58% 37%;
+    --rust: 17 59% 45%;
+    --teal: 163 34% 36%;
+    --ink: 148 37% 10%;
+    --paper: 40 35% 87%;
+    --paper-edge: 40 35% 74%;
+    --muted-board: 158 15% 60%;
+
+    /* shadcn mappings */
+    --background: 158 37% 14%;
+    --foreground: 46 27% 94%;
+    --card: 40 35% 87%;
+    --card-foreground: 148 37% 10%;
+    --popover: 40 35% 87%;
+    --popover-foreground: 148 37% 10%;
+    --primary: 41 76% 60%;
+    --primary-foreground: 148 37% 10%;
+    --secondary: 158 38% 11%;
+    --secondary-foreground: 46 27% 94%;
+    --muted: 158 38% 11%;
+    --muted-foreground: 158 15% 60%;
+    --accent: 163 34% 36%;
+    --accent-foreground: 46 27% 94%;
+    --destructive: 17 59% 45%;
+    --destructive-foreground: 46 27% 94%;
+    --border: 148 37% 18%;
+    --input: 148 37% 18%;
+    --ring: 41 76% 60%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  .font-display {
+    font-family: 'Fraunces', serif;
+  }
+  .font-hand {
+    font-family: 'Caveat', cursive;
+  }
+  .font-mono-sc {
+    font-family: 'Space Mono', monospace;
+  }
+}
+
+/* Chalk texture overlay */
+.chalk-noise {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' fill='%23F6F3EA'/%3E%3C/svg%3E");
+}
+
+.dust {
+  position: fixed;
+  border-radius: 50%;
+  background: hsl(46 27% 94%);
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+  animation: drift 14s ease-in-out infinite;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-18px); }
+}
+
+/* Paper card aesthetic */
+.card-paper {
+  background: hsl(40 35% 87%);
+  color: hsl(148 37% 10%);
+  border: 2px solid hsl(148 37% 10%);
+  border-radius: 18px 12px 20px 10px;
+  box-shadow: 3px 4px 0 hsl(38 58% 37%), 0 18px 40px rgba(0,0,0,0.35);
+}
+
+.card-board {
+  background: hsl(158 38% 9%);
+  border: 2px solid hsl(41 76% 60%);
+  border-radius: 20px 10px 20px 10px;
+}
+
+.card-topic {
+  background: hsl(40 35% 87%);
+  color: hsl(148 37% 10%);
+  border: 2px solid hsl(148 37% 10%);
+  border-radius: 14px 8px 14px 8px;
+  box-shadow: 2px 3px 0 rgba(0,0,0,0.25);
+}
+
+.card-note {
+  background: hsl(40 35% 87%);
+  color: hsl(148 37% 10%);
+  border: 2px solid hsl(148 37% 10%);
+  border-radius: 4px 12px 4px 12px;
+  box-shadow: 2px 3px 0 rgba(0,0,0,0.25);
+  position: relative;
+}
+
+.note-pin {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: hsl(17 59% 45%);
+  border: 2px solid hsl(148 37% 10%);
+}
+
+.btn-gold {
+  background: hsl(41 76% 60%);
+  color: hsl(148 37% 10%);
+  border: 2px solid hsl(148 37% 10%);
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 hsl(148 37% 10%);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.btn-gold:hover { transform: translateY(-1px); }
+.btn-gold:active { box-shadow: 0 0 0 hsl(148 37% 10%); transform: translateY(2px); }
+
+.grade-chip {
+  border: 2px solid hsl(148 37% 10%);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: hsl(148 37% 10%);
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+}
+.grade-chip.active {
+  background: hsl(41 76% 60%);
+  box-shadow: 2px 2px 0 hsl(148 37% 10%);
+}
+.grade-chip-board {
+  border: 2px solid hsl(41 76% 60%);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: hsl(46 27% 94%);
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+}
+.grade-chip-board.active {
+  background: hsl(41 76% 60%);
+  color: hsl(148 37% 10%);
+}
+
+/* Progress bar */
+.track {
+  background: hsl(40 35% 74%);
+  border-radius: 999px;
+  height: 9px;
+  overflow: hidden;
+}
+.track-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* Chalk line underline */
+.chalk-underline {
+  display: block;
+  margin: 3px auto 0;
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(158 15% 30%);
+    border-radius: 3px;
+  }
+  .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+  .animate-slide-up { animation: slideUp 0.3s ease-out; }
+  .animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
+  @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  .form-input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: hsl(40 44% 94%);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus {
+    border-color: hsl(41 76% 60%);
+  }
+  .form-input option,
+  select option {
+    background: hsl(158 38% 9%);
+    color: hsl(46 27% 94%);
+  }
+  .form-input::placeholder {
+    color: hsl(158 10% 55%);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Whiteboard handwriting animation */
+@keyframes writeIn {
+  0% { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateX(-4px); }
+  60% { opacity: 1; }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); transform: translateX(0); }
+}
+.animate-write-in {
+  animation: writeIn 0.6s ease-out forwards;
+}
