@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
-import { supabase, Announcement } from '@/lib/supabase-client';
+import { supabase, Announcement, Subject } from '@/lib/supabase-client';
 import { Bell, Loader as Loader2, Menu, X } from 'lucide-react';
 import { Wordmark } from '@/components/brand/Logo';
 
@@ -12,8 +12,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useAuth();
   const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [lessonsOpen, setLessonsOpen] = useState(false);
+  const [pastPapersOpen, setPastPapersOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -28,16 +31,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!profile) return;
-    const fetchAnnouncements = async () => {
-      const { data } = await supabase
+    const fetchShellData = async () => {
+      const [{ data: announcementsData }, { data: subjectsData }] = await Promise.all([
+        supabase
         .from('announcements')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(10);
-      setAnnouncements((data || []) as Announcement[]);
+        .limit(10),
+        supabase.from('subjects').select('*').order('display_order'),
+      ]);
+      setAnnouncements((announcementsData || []) as Announcement[]);
+      setSubjects(((subjectsData || []) as Subject[]).filter((subject) => subject.grades.includes(profile.grade)));
     };
-    void fetchAnnouncements();
+    void fetchShellData();
   }, [profile]);
 
   if (loading) {
@@ -111,8 +118,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-white/15 bg-board-deep p-2 shadow-xl">
-                  <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Lessons</Link>
-                  <Link href="/past-papers" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Past Papers</Link>
+                  <button type="button" onClick={() => setLessonsOpen((open) => !open)} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-muted-board hover:bg-white/5 hover:text-chalk">
+                    Lessons <span aria-hidden="true">{lessonsOpen ? '−' : '+'}</span>
+                  </button>
+                  {lessonsOpen && <div className="ml-3 border-l border-white/10 pl-2">
+                    {subjects.map((subject) => <Link key={subject.id} href={`/dashboard?subject=${subject.id}`} onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-1.5 text-xs text-muted-board hover:bg-white/5 hover:text-chalk">{subject.name}</Link>)}
+                  </div>}
+                  <button type="button" onClick={() => setPastPapersOpen((open) => !open)} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-muted-board hover:bg-white/5 hover:text-chalk">
+                    Past Papers <span aria-hidden="true">{pastPapersOpen ? '−' : '+'}</span>
+                  </button>
+                  {pastPapersOpen && <div className="ml-3 border-l border-white/10 pl-2">
+                    {subjects.map((subject) => <Link key={subject.id} href={`/past-papers?subject=${subject.id}`} onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-1.5 text-xs text-muted-board hover:bg-white/5 hover:text-chalk">{subject.name}</Link>)}
+                  </div>}
                   <Link href="/materials" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Study Materials</Link>
                   <Link href="/progress" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">My Progress</Link>
                   <Link href="/feedback" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Share Feedback</Link>

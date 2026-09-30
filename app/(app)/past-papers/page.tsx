@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { supabase, Subject, PastPaper } from '@/lib/supabase-client';
 import {
@@ -25,6 +26,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function PastPapersPage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [activeSubjectId, setActiveSubjectId] = useState('');
   const [papers, setPapers] = useState<PastPaper[]>([]);
@@ -45,7 +47,10 @@ export default function PastPapersPage() {
     const { data: subjectsData } = await supabase.from('subjects').select('*').order('display_order');
     const subs = ((subjectsData as Subject[]) || []).filter((s) => s.grades.includes(profile.grade));
     setSubjects(subs);
-    if (subs.length > 0) setActiveSubjectId(subs[0].id);
+    if (subs.length > 0) {
+      const requestedSubject = searchParams.get('subject');
+      setActiveSubjectId(subs.some((subject) => subject.id === requestedSubject) ? requestedSubject! : subs[0].id);
+    }
 
     const { data: papersData } = await supabase
       .from('past_papers')

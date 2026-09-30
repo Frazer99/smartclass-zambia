@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import { toast } from 'sonner';
@@ -37,6 +37,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 export default function DashboardPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [activeSubjectId, setActiveSubjectId] = useState<string>('');
@@ -153,7 +154,8 @@ export default function DashboardPage() {
     setExamDates(Object.fromEntries((examDatesRes.data || []).map((row: any) => [row.subject_id, row.exam_date])));
 
     if (gradeSubjects.length > 0) {
-      setActiveSubjectId(gradeSubjects[0].id);
+      const requestedSubject = searchParams.get('subject');
+      setActiveSubjectId(gradeSubjects.some((subject) => subject.id === requestedSubject) ? requestedSubject! : gradeSubjects[0].id);
     }
 
     setLessons((lessonsRes.data as Lesson[] || []).filter((lesson) => tops.some((topic) => topic.id === lesson.topic_id)));
