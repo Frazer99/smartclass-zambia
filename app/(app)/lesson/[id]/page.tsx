@@ -103,6 +103,7 @@ export default function LessonPage() {
     if (!sd) { toast.error('Lesson not found.'); router.push('/dashboard'); return; }
     setSession(sd as LessonSession);
     const ld = sd.lesson as Lesson & { topic: Topic };
+    if (!ld.topic?.source_material_id) { toast.error('This lesson is not part of an uploaded syllabus.'); router.push('/dashboard'); return; }
     setLesson(ld);
     setTopic(ld.topic);
     setContent(ld.content as LessonContent);

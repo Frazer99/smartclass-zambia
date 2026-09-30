@@ -29,9 +29,9 @@ export default function ProgressPage() {
 
   const fetchData = async () => {
     if (!profile) return;
-    const topicIds = (await supabase.from('topics').select('id').eq('grade', profile.grade)).data?.map((t: { id: string }) => t.id) || [];
+    const topicIds = (await supabase.from('topics').select('id').eq('grade', profile.grade).not('source_material_id', 'is', null)).data?.map((t: { id: string }) => t.id) || [];
     const [topicsRes, progressRes, lessonsRes, subjectsRes] = await Promise.all([
-      supabase.from('topics').select('*, subject:subjects(*)').eq('grade', profile.grade).order('display_order'),
+      supabase.from('topics').select('*, subject:subjects(*)').eq('grade', profile.grade).not('source_material_id', 'is', null).order('display_order'),
       supabase.from('progress_records').select('*').eq('user_id', profile.id),
       supabase.from('lessons').select('*').in('topic_id', topicIds),
       supabase.from('subjects').select('*').order('display_order'),

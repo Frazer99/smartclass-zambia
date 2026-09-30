@@ -27,12 +27,12 @@ export default function TopicTestPage() {
     if (!profile) return;
     (async () => {
       const [topicRes, questionRes] = await Promise.all([
-        supabase.from('topics').select('*').eq('id', topicId).maybeSingle(),
+        supabase.from('topics').select('*').eq('id', topicId).not('source_material_id', 'is', null).maybeSingle(),
         supabase.from('practice_questions').select('*').eq('topic_id', topicId),
       ]);
       setTopic(topicRes.data as Topic | null);
       const available = (questionRes.data || []) as PracticeQuestion[];
-      setQuestions(available.sort(() => Math.random() - 0.5).slice(0, Math.min(10, available.length)));
+      setQuestions(topicRes.data ? available.sort(() => Math.random() - 0.5).slice(0, Math.min(10, available.length)) : []);
       setLoading(false);
     })();
   }, [profile, topicId]);

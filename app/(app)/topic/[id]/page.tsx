@@ -32,7 +32,7 @@ export default function TopicPage() {
     const lessonIds = (await supabase.from('lessons').select('id').eq('topic_id', topicId)).data?.map((l: { id: string }) => l.id) || [];
 
     const [topicRes, lessonsRes, sessionsRes] = await Promise.all([
-      supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).maybeSingle(),
+      supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).not('source_material_id', 'is', null).maybeSingle(),
       supabase.from('lessons').select('*').eq('topic_id', topicId).order('display_order'),
       supabase.from('lesson_sessions').select('*').eq('user_id', profile.id).in('lesson_id', lessonIds),
     ]);

@@ -101,7 +101,7 @@ export default function DashboardPage() {
       const [announcementsRes, subjectsRes, topicsRes, progressRes, sessionRes, attemptsRes, pastPaperAttemptsRes, examDatesRes, lessonsRes] = await Promise.all([
       supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(3),
       supabase.from('subjects').select('*').order('display_order'),
-      supabase.from('topics').select('*').eq('grade', grade).order('display_order'),
+      supabase.from('topics').select('*').eq('grade', grade).not('source_material_id', 'is', null).order('display_order'),
       supabase.from('progress_records').select('*').eq('user_id', profile.id),
       supabase
         .from('lesson_sessions')

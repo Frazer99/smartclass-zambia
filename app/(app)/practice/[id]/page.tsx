@@ -38,12 +38,12 @@ export default function PracticePage() {
 
   const fetchQuestions = async () => {
     const [topicRes, qRes] = await Promise.all([
-      supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).maybeSingle(),
+      supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).not('source_material_id', 'is', null).maybeSingle(),
       supabase.from('practice_questions').select('*').eq('topic_id', topicId),
     ]);
     setTopic(topicRes.data as Topic);
     if (topicRes.data?.subject) setSubject(topicRes.data.subject as Subject);
-    setQuestions(qRes.data as PracticeQuestion[] || []);
+    setQuestions(topicRes.data ? (qRes.data as PracticeQuestion[] || []) : []);
     setLoading(false);
   };
 
