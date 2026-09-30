@@ -110,10 +110,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 aria-label="Open notifications"
                 aria-expanded={notificationsOpen}
                 title="Notifications"
-                className="relative flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm"
+                className="relative flex items-center justify-center rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm"
               >
                 <Bell className="h-4 w-4" />
-                <span className="hidden sm:inline">Notifications</span>
                 {announcements.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gold" />}
               </button>
               {notificationsOpen && (
