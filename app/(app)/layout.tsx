@@ -48,37 +48,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Wordmark size="sm" />
           </Link>
 
-          {/* Nav + profile */}
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 sm:gap-2">
+          {/* Main menu */}
+          <nav aria-label="Main menu" className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-1 sm:justify-end sm:gap-2">
             <Link href="/dashboard">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-board hover:text-chalk rounded-lg hover:bg-white/5 transition-colors">
+              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
                 <LayoutDashboard className="h-4 w-4" />
-                <span className="hidden sm:inline">Lessons</span>
-              </button>
+                <span>Lessons</span>
+              </span>
             </Link>
             <Link href="/past-papers">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-board hover:text-chalk rounded-lg hover:bg-white/5 transition-colors">
+              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
                 <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Past Papers</span>
-              </button>
+                <span>Past Papers</span>
+              </span>
             </Link>
             <Link href="/materials">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-board hover:text-chalk rounded-lg hover:bg-white/5 transition-colors">
+              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
                 <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Materials</span>
-              </button>
+                <span>Study Materials</span>
+              </span>
             </Link>
             <Link href="/progress">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-board hover:text-chalk rounded-lg hover:bg-white/5 transition-colors">
+              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
                 <TrendingUp className="h-4 w-4" />
-                <span className="hidden sm:inline">Progress</span>
-              </button>
+                <span>My Progress</span>
+              </span>
             </Link>
             <Link href="/feedback">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-board hover:text-chalk rounded-lg hover:bg-white/5 transition-colors" title="Share feedback">
+              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm" title="Share feedback">
                 <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Feedback</span>
-              </button>
+                <span>Share Feedback</span>
+              </span>
             </Link>
             {profile && (
               <span className="border-2 border-chalk/20 rounded-full px-3 py-1 text-xs font-semibold text-chalk/70 hidden sm:inline">
@@ -87,10 +87,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
 
             {/* Avatar */}
-            <Link href="/account" title="My Account">
-              <div className="w-9 h-9 rounded-full bg-gold flex items-center justify-center font-display font-bold text-ink text-sm hover:brightness-95 transition-all">
+            <Link href="/account" title="My Account" className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold font-display text-sm font-bold text-ink transition-all hover:brightness-95">
                 {initials}
               </div>
+              <span>My Account</span>
             </Link>
 
             <button
@@ -99,7 +100,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               Sign out
             </button>
-          </div>
+          </nav>
         </div>
       </header>
 
