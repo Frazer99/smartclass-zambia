@@ -53,7 +53,7 @@ export default function TeacherDashboard() {
     <div className="min-h-screen bg-board text-chalk">
       <div className="chalk-noise" />
       <header className="relative z-20 border-b border-white/10 bg-board-deep/60 backdrop-blur">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between"><Wordmark size="md" /><div className="flex items-center gap-3"><span className="text-sm text-muted-board">{profile.full_name}</span><button onClick={signOut} className="text-sm border border-white/15 text-muted-board hover:text-chalk rounded-lg px-3 py-1.5 transition-colors">Sign out</button></div></div>
+        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2"><Wordmark size="md" /><div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3"><span className="max-w-[10rem] truncate text-sm text-muted-board">{profile.full_name}</span><button onClick={signOut} className="text-sm border border-white/15 text-muted-board hover:text-chalk rounded-lg px-3 py-1.5 transition-colors">Sign out</button></div></div>
       </header>
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {!approved ? <div className="card-board p-6 text-center"><Clock className="h-8 w-8 text-gold mx-auto mb-3" /><p className="text-sm text-chalk font-semibold mb-1">Pending admin approval</p><p className="text-sm text-muted-board">Your teacher account for {profile.school || 'your school'} has not been approved yet.</p></div> : <>

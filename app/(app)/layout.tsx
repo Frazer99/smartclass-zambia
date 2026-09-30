@@ -42,14 +42,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Topbar */}
       <header className="relative z-20 border-b border-white/10 bg-board-deep/60 backdrop-blur print:hidden">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           {/* Wordmark */}
           <Link href="/dashboard">
             <Wordmark size="sm" />
           </Link>
 
           {/* Nav + profile */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 sm:gap-2">
             <Link href="/dashboard">
               <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-board hover:text-chalk rounded-lg hover:bg-white/5 transition-colors">
                 <LayoutDashboard className="h-4 w-4" />
@@ -103,7 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-5xl mx-auto px-4 py-6">
+      <main className="relative z-10 min-w-0 max-w-5xl mx-auto px-4 py-6">
         {children}
       </main>
     </div>

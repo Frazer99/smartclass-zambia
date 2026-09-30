@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="chalk-noise" />
 
       <header className="relative z-20 border-b border-gold/20 bg-board">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <LogoMark size={28} />
             <div className="leading-tight">
@@ -61,14 +61,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
             <Link
               href="/dashboard"
               className="hidden sm:flex items-center gap-1.5 text-xs text-muted-board hover:text-chalk transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to pupil app
             </Link>
-            <span className="text-xs text-muted-board">{profile?.full_name}</span>
+            <span className="max-w-[10rem] truncate text-xs text-muted-board">{profile?.full_name}</span>
             <button
               onClick={() => { signOut(); router.push('/admin/login'); }}
               className="border border-white/20 text-muted-board text-xs rounded-lg px-2.5 py-1.5 hover:text-chalk hover:border-white/40 transition-colors"
@@ -79,7 +79,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </header>
 
-      <main className="relative z-10 max-w-5xl mx-auto px-4 py-6">{children}</main>
+      <main className="relative z-10 min-w-0 max-w-5xl mx-auto px-4 py-6">{children}</main>
     </div>
   );
 }

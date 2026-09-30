@@ -114,10 +114,10 @@ export default function ParentDashboard() {
     <div className="min-h-screen bg-board text-chalk">
       <div className="chalk-noise" />
       <header className="relative z-20 border-b border-white/10 bg-board-deep/60 backdrop-blur">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <Wordmark size="md" />
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-board">{profile.full_name}</span>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <span className="max-w-[10rem] truncate text-sm text-muted-board">{profile.full_name}</span>
             <button onClick={signOut} className="text-sm border border-white/15 text-muted-board hover:text-chalk rounded-lg px-3 py-1.5 transition-colors">Sign out</button>
           </div>
         </div>
