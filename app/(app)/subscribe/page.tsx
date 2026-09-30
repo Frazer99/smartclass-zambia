@@ -4,10 +4,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CreditCard, Loader2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase-client';
+import { useAuth } from '@/components/auth-provider';
+import { supabase, Subject } from '@/lib/supabase-client';
 
 export default function SubscribePage() {
+  const { profile } = useAuth();
   const [price, setPrice] = useState(50);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectId, setSubjectId] = useState('');
+  const [targetGrade, setTargetGrade] = useState<number | null>(null);
   const [targetChildId, setTargetChildId] = useState<string | null>(null);
   const [targetChildName, setTargetChildName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<'mobile_money' | 'airtel_money' | 'card' | null>(null);
@@ -16,20 +21,33 @@ export default function SubscribePage() {
   useEffect(() => {
     void (async () => {
       const childId = new URLSearchParams(window.location.search).get('child');
+      const requestedSubjectId = new URLSearchParams(window.location.search).get('subject');
       if (childId) {
         const { data: children } = await supabase.rpc('get_my_children');
         const child = (children || []).find((item: { child_id: string }) => item.child_id === childId);
         if (child) {
           setTargetChildId(child.child_id);
           setTargetChildName(child.full_name);
+          setTargetGrade(child.grade);
         }
       }
       const { data } = await supabase.from('platform_settings').select('value').eq('key', 'subscription_price_zmw').maybeSingle();
       if (data?.value) setPrice(Number(data.value));
+      const grade = targetGrade ?? profile?.grade;
+      if (grade) {
+        const { data: subjectData } = await supabase.from('subjects').select('*').order('display_order');
+        const available = ((subjectData || []) as Subject[]).filter((subject) => subject.grades.includes(grade));
+        setSubjects(available);
+        if (available.length > 0) setSubjectId(available.some((subject) => subject.id === requestedSubjectId) ? requestedSubjectId! : available[0].id);
+      }
     })();
-  }, []);
+  }, [profile, targetGrade]);
 
   async function startPayment(paymentMethod: 'mobile_money' | 'airtel_money' | 'card') {
+    if (!subjectId) {
+      toast.error('Select a subject before starting payment.');
+      return;
+    }
     setSubmitting(paymentMethod);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -42,14 +60,14 @@ export default function SubscribePage() {
       const response = await fetch(isAirtel ? '/api/payments/airtel/initiate' : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify(isAirtel ? { msisdn: phoneNumber, reference, childId: targetChildId } : { paymentMethod, childId: targetChildId, ...(paymentMethod === 'mobile_money' ? { phoneNumber } : {}) }),
+        body: JSON.stringify(isAirtel ? { msisdn: phoneNumber, reference, childId: targetChildId, subjectId } : { paymentMethod, childId: targetChildId, subjectId, ...(paymentMethod === 'mobile_money' ? { phoneNumber } : {}) }),
       });
       const data = await response.json();
       if (!response.ok || (!data.paymentUrl && !data.paymentReference)) {
         toast.error(data.error || data.message || 'Could not start payment. Please try again.');
         return;
       }
-      window.location.assign(data.paymentUrl || `/subscribe/complete?reference=${encodeURIComponent(data.paymentReference)}${targetChildId ? `&child=${encodeURIComponent(targetChildId)}` : ''}`);
+      window.location.assign(data.paymentUrl || `/subscribe/complete?reference=${encodeURIComponent(data.paymentReference)}${targetChildId ? `&child=${encodeURIComponent(targetChildId)}` : ''}&subject=${encodeURIComponent(subjectId)}`);
     } catch {
       toast.error('Something went wrong. Please try again.');
     } finally {
@@ -64,7 +82,15 @@ export default function SubscribePage() {
       </Link>
       <div>
         <h1 className="font-display text-2xl font-semibold text-chalk mb-1">Subscribe to SmartClass Zambia</h1>
-        <p className="text-sm text-muted-board">{targetChildName ? `Paying for ${targetChildName}.` : 'Unlimited AI chat with Mr. Chomba and the team.'}</p>
+        <p className="text-sm text-muted-board">{targetChildName ? `Paying for ${targetChildName}.` : 'Choose one subject for unlimited AI chat and lessons.'}</p>
+      </div>
+      <div className="space-y-2">
+        <label htmlFor="subscription-subject" className="block text-xs uppercase tracking-widest text-muted-board font-semibold">Subject</label>
+        <select id="subscription-subject" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} disabled={submitting !== null} className="w-full rounded-lg border border-white/15 bg-board-deep px-4 py-3 text-sm text-chalk outline-none focus:border-gold">
+          {subjects.length === 0 && <option value="">No subjects available</option>}
+          {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+        </select>
+        <p className="text-xs text-muted-board">A subscription applies only to the selected subject. Subscribe again to unlock another subject.</p>
       </div>
       <div className="card-board p-6 text-center">
         <p className="font-mono-sc text-3xl font-bold text-chalk">K{price}</p>

@@ -22,10 +22,11 @@ export async function POST(request: NextRequest) {
     if (authError || !userData.user) return errorResponse("Invalid or expired session.", 401);
 
     const body = await request.json();
-    const { msisdn, reference, childId } = body;
+    const { msisdn, reference, childId, subjectId } = body;
 
     if (!/^260\d{9}$/.test(msisdn || "")) return errorResponse("Enter a valid Airtel Zambia number in international format.", 400);
     if (!reference || typeof reference !== "string") return errorResponse("A payment reference is required.", 400);
+    if (!subjectId || typeof subjectId !== "string") return errorResponse("Select a subject before paying.", 400);
 
     let userId = userData.user.id;
     if (childId) {
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest) {
       if (!link) return errorResponse("You can only pay for a linked child.", 403);
       userId = childId;
     }
+    const { data: profile } = await supabase.from("profiles").select("grade").eq("id", userId).maybeSingle();
+    const { data: subject } = await supabase.from("subjects").select("id, grades").eq("id", subjectId).maybeSingle();
+    if (!subject || !profile?.grade || !subject.grades.includes(profile.grade)) return errorResponse("That subject is not available for this pupil.", 400);
     const { data: setting } = await supabase.from("platform_settings").select("value").eq("key", "subscription_price_zmw").maybeSingle();
     const amount = Number(setting?.value ?? 50);
     if (!Number.isFinite(amount) || amount <= 0) return errorResponse("Invalid subscription price.", 500);
@@ -78,6 +82,7 @@ export async function POST(request: NextRequest) {
     if (!providerToken) return errorResponse("Airtel did not return a transaction ID.", 502);
     const { error: insertError } = await supabase.from("payments").insert({
       user_id: userId,
+      subject_id: subjectId,
       amount,
       currency: "ZMW",
       payment_method: "mobile_money",

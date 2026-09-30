@@ -33,6 +33,7 @@ Deno.serve(async (req: Request) => {
     }
     const { data: payment } = await supabase.from("payments").select("*").eq("provider_token", transToken).eq("user_id", userId).maybeSingle();
     if (!payment) return json({ error: "Payment not found" }, 404);
+    if (!payment.subject_id) return json({ error: "This payment has no subject. Contact support before retrying." }, 409);
     if (payment.status === "completed") return json({ paid: true, alreadyProcessed: true });
 
     let paid = false;
@@ -67,7 +68,7 @@ Deno.serve(async (req: Request) => {
       return json({ paid: false, pending: !shouldFail, reason });
     }
 
-    const { data: existingSub } = await supabase.from("subscriptions").select("*").eq("user_id", userId).eq("status", "active").maybeSingle();
+    const { data: existingSub } = await supabase.from("subscriptions").select("*").eq("user_id", userId).eq("subject_id", payment.subject_id).eq("status", "active").maybeSingle();
     const baseDate = existingSub?.expires_at && new Date(existingSub.expires_at) > new Date() ? new Date(existingSub.expires_at) : new Date();
     const newExpiry = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
     let subscriptionId = existingSub?.id;
@@ -76,7 +77,7 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: "Could not activate subscription" }, 500);
     } else {
       const { data: subscription, error } = await supabase.from("subscriptions").insert({
-        user_id: userId, status: "active", plan_type: "monthly", is_bonus_grant: false,
+        user_id: userId, subject_id: payment.subject_id, status: "active", plan_type: "monthly", is_bonus_grant: false,
         amount_paid: payment.amount, currency: payment.currency, expires_at: newExpiry,
       }).select("id").single();
       if (error || !subscription) return json({ error: "Could not activate subscription" }, 500);
@@ -87,7 +88,7 @@ Deno.serve(async (req: Request) => {
       status: "completed", completed_at: new Date().toISOString(), provider_ref: providerRef, subscription_id: subscriptionId,
     }).eq("id", payment.id);
     if (paymentError) return json({ error: "Subscription activated, but payment record update failed" }, 500);
-    return json({ paid: true, expiresAt: newExpiry });
+    return json({ paid: true, expiresAt: newExpiry, subjectId: payment.subject_id });
   } catch (error) {
     console.error("verify-payment error:", error);
     return json({ error: "Could not verify payment" }, 500);

@@ -158,6 +158,24 @@ Deno.serve(async (req: Request) => {
     }
     userId = userData.user.id;
 
+    if (!subjectId) {
+      return new Response(JSON.stringify({ error: "A subject is required for AI lessons" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: hasSubscription, error: subscriptionError } = await supabase.rpc("has_active_subscription", {
+      p_user_id: userId,
+      p_subject_id: subjectId,
+    });
+    if (subscriptionError) throw subscriptionError;
+    if (!hasSubscription) {
+      return new Response(JSON.stringify({ error: "Subscribe to this subject to continue", subjectId }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Two windows: a tight per-minute burst limit (catches automated
     // hammering — no real pupil sends 8+ messages inside 60 seconds) and a
     // looser per-hour limit (bounds the worst-case OpenAI cost from a

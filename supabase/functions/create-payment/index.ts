@@ -24,8 +24,9 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !userData.user) return json({ error: "Invalid or expired session" }, 401);
 
-    const { paymentMethod, phoneNumber, childId } = await req.json() as { paymentMethod: PaymentMethod; phoneNumber?: string; childId?: string | null };
+    const { paymentMethod, phoneNumber, childId, subjectId } = await req.json() as { paymentMethod: PaymentMethod; phoneNumber?: string; childId?: string | null; subjectId?: string };
     if (paymentMethod !== "mobile_money" && paymentMethod !== "card") return json({ error: "Invalid payment method" }, 400);
+    if (!subjectId) return json({ error: "Select a subject before paying" }, 400);
     if (paymentMethod === "mobile_money" && !/^260\d{9}$/.test(phoneNumber || "")) {
       return json({ error: "Enter a valid MTN Zambia number in international format, for example 260971234567" }, 400);
     }
@@ -37,7 +38,11 @@ Deno.serve(async (req: Request) => {
       if (!link) return json({ error: "You can only pay for a linked child." }, 403);
       userId = childId;
     }
-    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+    const { data: profile } = await supabase.from("profiles").select("full_name, grade").eq("id", userId).maybeSingle();
+    const { data: subject } = await supabase.from("subjects").select("id, name, grades").eq("id", subjectId).maybeSingle();
+    if (!subject || !profile?.grade || !subject.grades.includes(profile.grade)) {
+      return json({ error: "That subject is not available for this pupil." }, 400);
+    }
     const { data: setting } = await supabase.from("platform_settings").select("value").eq("key", "subscription_price_zmw").maybeSingle();
     const amount = Number(setting?.value ?? 50);
     if (!Number.isFinite(amount) || amount <= 0) return json({ error: "Invalid subscription price" }, 500);
@@ -55,10 +60,10 @@ Deno.serve(async (req: Request) => {
         currency: "ZMW",
         phoneNumber: phoneNumber!,
         externalId: companyRef,
-        payerMessage: "SmartClass Zambia monthly subscription",
+        payerMessage: `SmartClass Zambia ${subject.name} subscription`,
       });
       const { error: insertError } = await supabase.from("payments").insert({
-        user_id: userId, amount, currency: "ZMW", payment_method: paymentMethod,
+        user_id: userId, subject_id: subjectId, amount, currency: "ZMW", payment_method: paymentMethod,
         provider: "mtn_momo", provider_token: referenceId, company_ref: companyRef, status: "pending",
       });
       if (insertError) return json({ error: "Could not record payment" }, 500);
@@ -73,12 +78,12 @@ Deno.serve(async (req: Request) => {
       redirectUrl: `${siteUrl}/subscribe/complete${childId ? `?child=${encodeURIComponent(childId)}` : ""}`, backUrl: `${siteUrl}/subscribe`,
       customerEmail: childId ? (userData.user.email || "no-reply@smartclasszambia.com") : (authUser.user?.email || "no-reply@smartclasszambia.com"),
       customerFirstName: firstName || "Pupil", customerLastName: rest.join(" ") || "Pupil",
-      serviceDescription: "SmartClass Zambia - Monthly Subscription",
+      serviceDescription: `SmartClass Zambia - ${subject.name} Monthly Subscription`,
     });
     if (!result.success || !result.transToken || !result.paymentUrl) return json({ error: result.resultExplanation || "Could not start payment" }, 502);
 
     const { error: insertError } = await supabase.from("payments").insert({
-      user_id: userId, amount, currency: "ZMW", payment_method: paymentMethod,
+      user_id: userId, subject_id: subjectId, amount, currency: "ZMW", payment_method: paymentMethod,
       provider: "dpo", provider_token: result.transToken, company_ref: companyRef, status: "pending",
     });
     if (insertError) return json({ error: "Could not record payment" }, 500);

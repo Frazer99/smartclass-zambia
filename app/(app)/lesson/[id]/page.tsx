@@ -321,6 +321,12 @@ export default function LessonPage() {
         toast.error(data?.response || "You're sending messages a little fast — try again in a moment.");
         return;
       }
+      if (response.status === 402) {
+        const data = await response.json().catch(() => null);
+        setIsThinking(false);
+        router.push(`/subscribe${data?.subjectId ? `?subject=${encodeURIComponent(data.subjectId)}` : ''}`);
+        return;
+      }
       if (!response.ok) throw new Error('AI teacher request failed');
       const data = await response.json();
       const aiResponse = data.response || 'I am having trouble right now. Please try again.';
