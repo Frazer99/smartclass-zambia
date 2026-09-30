@@ -117,7 +117,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
               {menuOpen && (
-                <div className="fixed right-3 top-24 z-[60] max-h-[calc(100dvh-6rem)] w-[min(14rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-white/15 bg-board-deep p-2 shadow-xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-h-[calc(100vh-6rem)] sm:w-56">
+                <div className="fixed right-3 top-24 z-[60] max-h-[calc(100dvh-6rem)] w-[min(14rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-white/15 bg-board-deep p-2 shadow-xl md:absolute md:right-0 md:top-full md:z-50 md:mt-2 md:max-h-none md:w-56 md:overflow-visible">
                   <button type="button" onClick={() => setLessonsOpen((open) => !open)} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-muted-board hover:bg-white/5 hover:text-chalk">
                     Lessons <span aria-hidden="true">{lessonsOpen ? '−' : '+'}</span>
                   </button>
