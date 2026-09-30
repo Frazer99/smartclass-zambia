@@ -13,7 +13,6 @@ import {
   LessonSession,
   Subject,
   SearchResult,
-  Announcement,
 } from '@/lib/supabase-client';
 import { analyzeWeakAreas, recommendNextLesson, RecentAttempt, WeakArea } from '@/lib/adaptiveLearning';
 import {
@@ -26,7 +25,6 @@ import {
   TestTube,
   GraduationCap,
   CalendarClock,
-  Megaphone,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -48,7 +46,6 @@ export default function DashboardPage() {
   const [recentAttempts, setRecentAttempts] = useState<RecentAttempt[]>([]);
   const [activeSession, setActiveSession] = useState<LessonSession | null>(null);
   const [examDates, setExamDates] = useState<Record<string, string>>({});
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const fetchInFlight = useRef(false);
@@ -98,8 +95,7 @@ export default function DashboardPage() {
     try {
       const grade = profile.grade;
 
-      const [announcementsRes, subjectsRes, topicsRes, progressRes, sessionRes, attemptsRes, pastPaperAttemptsRes, examDatesRes, lessonsRes] = await Promise.all([
-      supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(3),
+      const [subjectsRes, topicsRes, progressRes, sessionRes, attemptsRes, pastPaperAttemptsRes, examDatesRes, lessonsRes] = await Promise.all([
       supabase.from('subjects').select('*').order('display_order'),
       supabase.from('topics').select('*').eq('grade', grade).not('source_material_id', 'is', null).order('display_order'),
       supabase.from('progress_records').select('*').eq('user_id', profile.id),
@@ -146,9 +142,6 @@ export default function DashboardPage() {
         created_at: a.created_at as string,
       }));
     setRecentAttempts([...practiceAttempts, ...pastPaperAttempts]);
-    setAnnouncements((announcementsRes.data || []) as Announcement[]);
-
-
     const subs = subjectsRes.data as Subject[] || [];
     const tops = topicsRes.data as Topic[] || [];
     const gradeSubjects = subs.filter((s) => s.grades.includes(grade));
@@ -255,23 +248,6 @@ export default function DashboardPage() {
         <b className="text-chalk">{greeting}, {firstName}.</b>{' '}
         {activeSession ? 'Ready to continue where you left off?' : 'Ready to start learning?'}
       </p>
-
-        {announcements.length > 0 && (
-          <div className="card-board border-gold/50 p-5">
-            <div className="flex items-start gap-3">
-              <Megaphone className="h-5 w-5 text-gold shrink-0 mt-0.5" />
-              <div className="space-y-3 min-w-0">
-                {announcements.map((announcement) => (
-                  <article key={announcement.id}>
-                    <p className="text-xs uppercase tracking-widest text-gold font-semibold">Announcement</p>
-                    <h2 className="font-display text-lg font-semibold text-chalk mt-1">{announcement.title}</h2>
-                    <p className="text-sm text-muted-board mt-1 whitespace-pre-wrap">{announcement.body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
       {/* Search bar */}
       <div className="relative">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
-import { supabase, Subject, PastPaper, Announcement } from '@/lib/supabase-client';
+import { supabase, Subject, PastPaper } from '@/lib/supabase-client';
 import {
   Calculator,
   FlaskConical,
@@ -14,7 +14,6 @@ import {
   Download,
   Clock,
   ListChecks,
-  Megaphone,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -30,26 +29,11 @@ export default function PastPapersPage() {
   const [activeSubjectId, setActiveSubjectId] = useState('');
   const [papers, setPapers] = useState<PastPaper[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!profile) return;
     fetchData();
-  }, [profile]);
-
-  useEffect(() => {
-    if (!profile) return;
-    const fetchAnnouncements = async () => {
-      const { data } = await supabase
-        .from('announcements')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(3);
-      setAnnouncements((data || []) as Announcement[]);
-    };
-    fetchAnnouncements();
   }, [profile]);
 
   async function fetchData() {
@@ -109,23 +93,6 @@ export default function PastPapersPage() {
           the whole paper or jump to specific questions.
         </p>
       </div>
-
-      {announcements.length > 0 && (
-        <section className="card-board p-4" aria-label="Announcements">
-          <div className="flex items-center gap-2 mb-3">
-            <Megaphone className="h-4 w-4 text-gold shrink-0" />
-            <h2 className="font-display text-base font-semibold text-chalk">Announcements</h2>
-          </div>
-          <div className="space-y-3">
-            {announcements.map((announcement) => (
-              <article key={announcement.id} className="border-l-2 border-gold/50 pl-3">
-                <h3 className="text-sm font-semibold text-chalk">{announcement.title}</h3>
-                <p className="text-xs text-muted-board mt-1 whitespace-pre-wrap">{announcement.body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Subject tabs */}
       <div className="flex gap-2 flex-wrap">

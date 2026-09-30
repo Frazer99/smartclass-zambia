@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
-import { LayoutDashboard, TrendingUp, FileText, BookOpen, MessageSquare, CreditCard, Loader as Loader2 } from 'lucide-react';
+import { supabase, Announcement } from '@/lib/supabase-client';
+import { Bell, LayoutDashboard, TrendingUp, FileText, BookOpen, MessageSquare, CreditCard, Loader as Loader2 } from 'lucide-react';
 import { Wordmark } from '@/components/brand/Logo';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useAuth();
   const router = useRouter();
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -21,6 +24,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/admin');
     }
   }, [user, profile, loading, router]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const fetchAnnouncements = async () => {
+      const { data } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setAnnouncements((data || []) as Announcement[]);
+    };
+    void fetchAnnouncements();
+  }, [profile]);
 
   if (loading) {
     return (
@@ -86,6 +103,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <span>Subscription</span>
               </span>
             </Link>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen((open) => !open)}
+                aria-label="Open notifications"
+                aria-expanded={notificationsOpen}
+                title="Notifications"
+                className="relative flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:inline">Notifications</span>
+                {announcements.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gold" />}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-lg border border-white/15 bg-board-deep p-4 shadow-xl">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 className="font-display text-base font-semibold text-chalk">Notifications</h2>
+                    <span className="text-xs text-muted-board">{announcements.length}</span>
+                  </div>
+                  {announcements.length === 0 ? (
+                    <p className="text-sm text-muted-board">You have no new notifications.</p>
+                  ) : (
+                    <div className="max-h-80 space-y-3 overflow-y-auto">
+                      {announcements.map((announcement) => (
+                        <article key={announcement.id} className="border-l-2 border-gold/50 pl-3">
+                          <p className="text-xs uppercase tracking-widest text-gold">Announcement</p>
+                          <h3 className="mt-1 text-sm font-semibold text-chalk">{announcement.title}</h3>
+                          <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-muted-board">{announcement.body}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {profile && (
               <span className="border-2 border-chalk/20 rounded-full px-3 py-1 text-xs font-semibold text-chalk/70 hidden sm:inline">
                 Form {profile.grade}
