@@ -6,7 +6,6 @@ import { useAuth } from '@/components/auth-provider';
 import { supabase, Subject, Topic, Lesson, LessonContent, ContentMaterial, PracticeQuestion, PastPaper, UserFeedback, Announcement } from '@/lib/supabase-client';
 import { Shield, Loader as Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { extractPdfTextLocally } from '@/lib/pdf-text-extraction';
 
 import { OverviewTab } from './tabs/overview-tab';
 import { AnalyticsTab } from './tabs/analytics-tab';
@@ -558,18 +557,6 @@ export default function AdminPage() {
     setModerationFlags((flags) => flags.map((flag) => flag.id === id ? { ...flag, reviewed: true } : flag));
   };
 
-  const getLocalPdfText = async (file: File) => {
-    toast.info('Reading PDF locally. This may take a moment for scanned pages.');
-    try {
-      const text = await extractPdfTextLocally(file);
-      if (!text) throw new Error('No text could be extracted locally from this PDF.');
-      return text;
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : 'The browser OCR engine could not start.';
-      throw new Error(`Local PDF OCR failed: ${detail} Check your internet connection and retry.`);
-    }
-  };
-
   // Materials handlers
   const handleAdd = async () => {
     if (!form.title || !form.source) { toast.error('Title and source are required.'); return; }
@@ -617,13 +604,12 @@ export default function AdminPage() {
           if (ingestError) throw new Error(`Video transcription failed: ${ingestError.message}. Confirm ingest-video-material is deployed and OPENAI_API_KEY is configured.`);
           if (!ingestResult?.success || !ingestResult.transcribed_characters) throw new Error('Video was uploaded but no transcript was created.');
         } else {
-        const extractedText = await getLocalPdfText(selectedFile);
         storagePath = `${crypto.randomUUID()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, selectedFile, { contentType: 'application/pdf', upsert: false });
         if (uploadError) throw new Error(`PDF upload failed: ${uploadError.message}`);
         ingestionStarted = true;
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: extractedText, subject_id: form.subject_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
+          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, subject_id: form.subject_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
         });
         if (ingestError) {
           const context = ingestError.context instanceof Response ? ` (HTTP ${ingestError.context.status})` : '';
@@ -686,7 +672,6 @@ export default function AdminPage() {
     if (!isPdf) { toast.error('Only PDF files can be uploaded.'); return; }
     if (pastPaperAnswerFile && !(pastPaperAnswerFile.type === 'application/pdf' || /\.pdf$/i.test(pastPaperAnswerFile.name))) { toast.error('The answer file must be a PDF.'); return; }
     try {
-      const extractedText = await getLocalPdfText(pastPaperFile);
       const storagePath = `past-papers/${crypto.randomUUID()}-${pastPaperFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, pastPaperFile, { contentType: 'application/pdf', upsert: false });
       if (uploadError) throw new Error(`PDF storage upload failed: ${uploadError.message}`);
@@ -703,7 +688,7 @@ export default function AdminPage() {
       if (materialError || !material) throw new Error(`Paper record creation failed: ${materialError?.message || 'No material was returned.'}`);
 
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: extractedText, answer_storage_path: answerStoragePath, answer_extracted_text: null, material_type: 'past_paper' },
+        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: null, answer_storage_path: answerStoragePath, answer_extracted_text: null, material_type: 'past_paper' },
       });
       if (ingestError) {
         let detail = ingestError.message;
@@ -856,7 +841,6 @@ export default function AdminPage() {
     let storagePath: string | null = null;
     let ingestionStarted = false;
     try {
-      const extractedText = await getLocalPdfText(file);
       const title = syllabusUpload.title || `${subjects.find((subject) => subject.id === subject_id)?.name || 'Curriculum'} Syllabus Form ${grade}`;
       const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
         body: { title, source: 'Admin syllabus upload', material_type: 'syllabus', subject_id, grade: Number(grade), status: 'pending' },
@@ -868,7 +852,7 @@ export default function AdminPage() {
       if (uploadError) throw uploadError;
       ingestionStarted = true;
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.data.id, storage_path: storagePath, extracted_text: extractedText, subject_id, grade: Number(grade), material_type: 'syllabus' },
+        body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, subject_id, grade: Number(grade), material_type: 'syllabus' },
       });
       if (ingestError) throw new Error(`Syllabus processing failed: ${ingestError.message}`);
       if (!ingestResult?.success || !ingestResult.extracted_characters) throw new Error('Syllabus was uploaded but could not be indexed for AI use.');
