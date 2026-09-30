@@ -5,14 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import { supabase, Announcement } from '@/lib/supabase-client';
-import { Bell, Loader as Loader2 } from 'lucide-react';
+import { Bell, Loader as Loader2, Menu, X } from 'lucide-react';
 import { Wordmark } from '@/components/brand/Logo';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -94,6 +95,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-label="Open menu"
+                aria-expanded={menuOpen}
+                title="Menu"
+                className="flex items-center justify-center rounded-lg px-2 py-2 text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3"
+              >
+                {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-white/15 bg-board-deep p-2 shadow-xl">
+                  <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Lessons</Link>
+                  <Link href="/past-papers" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Past Papers</Link>
+                  <Link href="/materials" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Study Materials</Link>
+                  <Link href="/progress" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">My Progress</Link>
+                  <Link href="/feedback" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Share Feedback</Link>
+                  <Link href="/subscribe" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">Subscription</Link>
+                  <Link href="/account" onClick={() => setMenuOpen(false)} className="block rounded-md px-3 py-2 text-sm text-muted-board hover:bg-white/5 hover:text-chalk">My Account</Link>
+                  <div className="my-2 border-t border-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); void signOut(); }}
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-muted-board hover:bg-white/5 hover:text-chalk"
+                  >
+                    Sign out
+                  </button>
                 </div>
               )}
             </div>
