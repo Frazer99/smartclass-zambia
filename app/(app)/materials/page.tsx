@@ -43,24 +43,28 @@ export default function MaterialsPage() {
   }, [profile, searchParams]);
 
   useEffect(() => {
-    if (!activeSubjectId || !profile) {
+    const searchTerm = query.trim();
+    if (!activeSubjectId || !profile || !searchTerm) {
       setMaterials([]);
+      setLoading(false);
       return;
     }
     void (async () => {
       setLoading(true);
+      const safeSearchTerm = searchTerm.replace(/[%_(),]/g, ' ');
       const { data } = await supabase
         .from('content_materials')
         .select('id, title, source, source_reference, content_summary, extracted_text, storage_path, material_type, grade, uploaded_at, subject:subjects(name)')
         .eq('subject_id', activeSubjectId)
+        .or(`title.ilike.%${safeSearchTerm}%,source.ilike.%${safeSearchTerm}%,content_summary.ilike.%${safeSearchTerm}%`)
         .order('uploaded_at', { ascending: false });
       setMaterials((data || []) as Material[]);
       setLoading(false);
     })();
-  }, [activeSubjectId, profile]);
+  }, [activeSubjectId, profile, query]);
 
   const visibleMaterials = materials.filter((material) => {
-    if (!query.trim()) return true;
+    if (!query.trim()) return false;
     const subjectName = Array.isArray(material.subject) ? material.subject[0]?.name : material.subject?.name;
     const searchable = `${material.title} ${material.source} ${subjectName || ''} ${material.content_summary || ''}`.toLowerCase();
     return searchable.includes(query.toLowerCase());
@@ -82,14 +86,14 @@ export default function MaterialsPage() {
         <p className="text-sm text-muted-board">Select a subject to view only the materials assigned to it.</p>
       </div>
       <label htmlFor="materials-subject" className="sr-only">Select subject</label>
-      <select id="materials-subject" value={activeSubjectId} onChange={(event) => setActiveSubjectId(event.target.value)} className="w-full rounded-lg border border-white/15 bg-board-deep px-4 py-3 text-sm text-chalk outline-none focus:border-gold">
+      <select id="materials-subject" value={activeSubjectId} onChange={(event) => { setActiveSubjectId(event.target.value); setQuery(''); setOpenMaterial(null); }} className="w-full rounded-lg border border-white/15 bg-board-deep px-4 py-3 text-sm text-chalk outline-none focus:border-gold">
         <option value="">Select a subject</option>
         {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
       </select>
       {!activeSubjectId ? <div className="card-board p-8 text-center"><BookOpen className="h-8 w-8 text-muted-board mx-auto mb-3" /><p className="text-sm text-muted-board">Choose a subject to load its study materials.</p></div> : <>
         <h2 className="font-display text-lg font-semibold text-chalk">{activeSubject?.name} materials</h2>
         <label className="flex items-center gap-2 border border-white/15 rounded-lg px-3 py-2.5 bg-board-deep/40"><Search className="h-4 w-4 text-muted-board" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${activeSubject?.name} materials`} className="w-full bg-transparent text-sm text-chalk outline-none placeholder:text-muted-board" /></label>
-        {loading ? <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-gold" /></div> : visibleMaterials.length === 0 ? <div className="card-board p-8 text-center"><FileText className="h-8 w-8 text-muted-board mx-auto mb-3" /><p className="text-sm text-muted-board">No materials found for {activeSubject?.name}.</p></div> : <div className="space-y-3">{visibleMaterials.map((material) => { const subjectName = Array.isArray(material.subject) ? material.subject[0]?.name : material.subject?.name; return <article key={material.id} className="card-board overflow-hidden"><div className="p-5"><div className="flex items-start gap-3"><FileText className="h-5 w-5 text-gold mt-0.5 shrink-0" /><div className="min-w-0 flex-1"><h2 className="font-display font-semibold text-chalk">{material.title}</h2><p className="text-xs text-muted-board mt-1">{subjectName || 'General'}{material.grade ? ` · Form ${material.grade}` : ''} · {material.material_type}</p><p className="text-sm text-muted-board mt-3">{material.content_summary || `Source: ${material.source}`}</p></div></div><div className="flex flex-wrap gap-2 mt-4"><button onClick={() => setOpenMaterial(openMaterial === material.id ? null : material.id)} className="border border-white/15 rounded-lg px-3 py-2 text-xs text-chalk hover:border-gold transition-colors">{openMaterial === material.id ? 'Hide document text' : 'Read document text'}</button>{material.storage_path && <button onClick={() => void downloadMaterial(material.storage_path!)} className="inline-flex items-center gap-1.5 border border-white/15 rounded-lg px-3 py-2 text-xs text-chalk hover:border-gold transition-colors"><Download className="h-3.5 w-3.5" /> Download document</button>}</div></div>{openMaterial === material.id && <div className="border-t border-white/10 px-5 py-4"><div className="whitespace-pre-wrap text-sm leading-7 text-chalk/85 max-h-[32rem] overflow-y-auto">{material.extracted_text || 'The document text is not available yet. Download the source document if one is attached.'}</div></div>}</article>; })}</div>}
+        {!query.trim() ? <div className="card-board p-8 text-center"><Search className="h-8 w-8 text-muted-board mx-auto mb-3" /><p className="text-sm text-muted-board">Search for a material in {activeSubject?.name}.</p></div> : loading ? <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-gold" /></div> : visibleMaterials.length === 0 ? <div className="card-board p-8 text-center"><FileText className="h-8 w-8 text-muted-board mx-auto mb-3" /><p className="text-sm text-muted-board">No materials found for &quot;{query}&quot;.</p></div> : <div className="space-y-3">{visibleMaterials.map((material) => { const subjectName = Array.isArray(material.subject) ? material.subject[0]?.name : material.subject?.name; return <article key={material.id} className="card-board overflow-hidden"><div className="p-5"><div className="flex items-start gap-3"><FileText className="h-5 w-5 text-gold mt-0.5 shrink-0" /><div className="min-w-0 flex-1"><h2 className="font-display font-semibold text-chalk">{material.title}</h2><p className="text-xs text-muted-board mt-1">{subjectName || 'General'}{material.grade ? ` · Form ${material.grade}` : ''} · {material.material_type}</p><p className="text-sm text-muted-board mt-3">{material.content_summary || `Source: ${material.source}`}</p></div></div><div className="flex flex-wrap gap-2 mt-4"><button onClick={() => setOpenMaterial(openMaterial === material.id ? null : material.id)} className="border border-white/15 rounded-lg px-3 py-2 text-xs text-chalk hover:border-gold transition-colors">{openMaterial === material.id ? 'Hide document text' : 'Read document text'}</button>{material.storage_path && <button onClick={() => void downloadMaterial(material.storage_path!)} className="inline-flex items-center gap-1.5 border border-white/15 rounded-lg px-3 py-2 text-xs text-chalk hover:border-gold transition-colors"><Download className="h-3.5 w-3.5" /> Download document</button>}</div></div>{openMaterial === material.id && <div className="border-t border-white/10 px-5 py-4"><div className="whitespace-pre-wrap text-sm leading-7 text-chalk/85 max-h-[32rem] overflow-y-auto">{material.extracted_text || 'The document text is not available yet. Download the source document if one is attached.'}</div></div>}</article>; })}</div>}
       </>}
     </div>
   );
