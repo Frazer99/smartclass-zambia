@@ -145,7 +145,9 @@ export default function DashboardPage() {
     setRecentAttempts([...practiceAttempts, ...pastPaperAttempts]);
     const subs = subjectsRes.data as Subject[] || [];
     const tops = topicsRes.data as Topic[] || [];
-    const gradeSubjects = subs.filter((s) => s.grades.includes(grade));
+    const gradeSubjects = subs
+      .filter((s) => s.grades.includes(grade))
+      .filter((s) => tops.some((topic) => topic.subject_id === s.id));
 
     setSubjects(gradeSubjects);
     setTopics(tops);
@@ -405,7 +407,7 @@ export default function DashboardPage() {
       )}
 
       {/* Subject tabs */}
-      <div className="flex gap-2 flex-wrap">
+      {subjects.length > 0 && <div className="flex gap-2 flex-wrap">
         {subjects.map((s) => {
           const Icon = iconMap[s.icon] || GraduationCap;
           const isActive = s.id === activeSubjectId;
@@ -425,10 +427,10 @@ export default function DashboardPage() {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {/* Topics for active subject */}
-      <div>
+      {subjects.length > 0 && <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-lg font-semibold text-chalk">
             {activeSubject?.name} Topics
@@ -438,12 +440,7 @@ export default function DashboardPage() {
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {subjectTopics.length === 0 ? (
-            <div className="col-span-full card-board p-8 text-center text-muted-board text-sm">
-              No topics available for this subject yet.
-            </div>
-          ) : (
-            subjectTopics.map((topic) => {
+          {subjectTopics.map((topic) => {
               const tp = progress.find((p) => p.topic_id === topic.id);
               const mastery = tp ? Number(tp.mastery_percentage) : 0;
               const topicLessons = lessons.filter((l) => l.topic_id === topic.id);
@@ -486,10 +483,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               );
-            })
-          )}
+            })}
         </div>
-      </div>
+      </div>}
 
       {/* Stats — pinned notes */}
       <div>

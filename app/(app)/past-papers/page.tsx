@@ -46,12 +46,6 @@ export default function PastPapersPage() {
 
     const { data: subjectsData } = await supabase.from('subjects').select('*').order('display_order');
     const subs = ((subjectsData as Subject[]) || []).filter((s) => s.grades.includes(profile.grade));
-    setSubjects(subs);
-    if (subs.length > 0) {
-      const requestedSubject = searchParams.get('subject');
-      setActiveSubjectId(subs.some((subject) => subject.id === requestedSubject) ? requestedSubject! : subs[0].id);
-    }
-
     const { data: papersData } = await supabase
       .from('past_papers')
       .select('*')
@@ -59,6 +53,14 @@ export default function PastPapersPage() {
       .order('year', { ascending: false });
     const list = (papersData as PastPaper[]) || [];
     setPapers(list);
+    const paperSubjects = subs.filter((subject) => list.some((paper) => paper.subject_id === subject.id));
+    setSubjects(paperSubjects);
+    if (paperSubjects.length > 0) {
+      const requestedSubject = searchParams.get('subject');
+      setActiveSubjectId(paperSubjects.some((subject) => subject.id === requestedSubject) ? requestedSubject! : paperSubjects[0].id);
+    } else {
+      setActiveSubjectId('');
+    }
 
     if (list.length > 0) {
       const { data: countsData } = await supabase
@@ -100,7 +102,7 @@ export default function PastPapersPage() {
       </div>
 
       {/* Subject tabs */}
-      <div className="flex gap-2 flex-wrap">
+      {subjects.length > 0 && <div className="flex gap-2 flex-wrap">
         {subjects.map((s) => {
           const Icon = iconMap[s.icon] || GraduationCap;
           const isActive = s.id === activeSubjectId;
@@ -120,9 +122,9 @@ export default function PastPapersPage() {
             </button>
           );
         })}
-      </div>
+      </div>}
 
-      <div>
+      {subjects.length > 0 ? <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-lg font-semibold text-chalk">{activeSubject?.name} Past Papers</h2>
           <span className="text-xs text-muted-board font-mono-sc">{subjectPapers.length} papers</span>
@@ -181,7 +183,12 @@ export default function PastPapersPage() {
             })}
           </div>
         )}
-      </div>
+      </div> : (
+        <div className="card-board p-8 text-center text-muted-board text-sm">
+          No past papers are available for Grade {displayGrade} yet. Check back soon, or ask an admin to add one under
+          Content Materials.
+        </div>
+      )}
     </div>
   );
 }

@@ -37,7 +37,9 @@ export default function ProgressPage() {
       supabase.from('subjects').select('*').order('display_order'),
     ]);
     const tops = topicsRes.data as Topic[] || [];
-    const subs = (subjectsRes.data as Subject[] || []).filter((s) => s.grades.includes(profile.grade));
+    const subs = (subjectsRes.data as Subject[] || [])
+      .filter((s) => s.grades.includes(profile.grade))
+      .filter((s) => tops.some((topic) => topic.subject_id === s.id));
     setTopics(tops);
     setProgress(progressRes.data as ProgressRecord[] || []);
     setLessons(lessonsRes.data as Lesson[] || []);
@@ -122,7 +124,7 @@ export default function ProgressPage() {
       )}
 
       {/* Subject tabs */}
-      <div className="flex gap-2 flex-wrap">
+      {subjects.length > 0 && <div className="flex gap-2 flex-wrap">
         {subjects.map((s) => {
           const Icon = iconMap[s.icon] || GraduationCap;
           const isActive = s.id === activeSubjectId;
@@ -142,20 +144,15 @@ export default function ProgressPage() {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {/* Topic breakdown for active subject */}
-      <div>
+      {subjects.length > 0 && <div>
         <h2 className="font-display text-lg font-semibold text-chalk mb-3">
           {activeSubject?.name} Topics
         </h2>
         <div className="space-y-3">
-          {subjectTopics.length === 0 ? (
-            <div className="card-board p-8 text-center text-muted-board text-sm">
-              No topics available for this subject yet.
-            </div>
-          ) : (
-            subjectTopics.map((topic) => {
+          {subjectTopics.map((topic) => {
               const tp = progress.find((p) => p.topic_id === topic.id);
               const mastery = tp ? Number(tp.mastery_percentage) : 0;
               const tl = lessons.filter((l) => l.topic_id === topic.id);
@@ -205,10 +202,9 @@ export default function ProgressPage() {
                   </div>
                 </div>
               );
-            })
-          )}
+            })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
