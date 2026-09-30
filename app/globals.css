@@ -46,6 +46,7 @@
   * {
     @apply border-border;
     box-sizing: border-box;
+    min-width: 0;
   }
   html,
   body {
@@ -57,12 +58,23 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
+    overflow-wrap: anywhere;
   }
   img,
   svg,
   video,
   canvas {
     max-width: 100%;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+  pre {
+    max-width: 100%;
+    overflow-x: auto;
   }
   .font-display {
     font-family: 'Fraunces', serif;
