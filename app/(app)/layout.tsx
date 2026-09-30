@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
-import { LayoutDashboard, TrendingUp, FileText, BookOpen, MessageSquare, Loader as Loader2 } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, FileText, BookOpen, MessageSquare, CreditCard, Loader as Loader2 } from 'lucide-react';
 import { Wordmark } from '@/components/brand/Logo';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/dashboard">
               <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
                 <LayoutDashboard className="h-4 w-4" />
-                <span>Lessons</span>
+                <span>Dashboard</span>
               </span>
             </Link>
             <Link href="/past-papers">
@@ -78,6 +78,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm" title="Share feedback">
                 <MessageSquare className="h-4 w-4" />
                 <span>Share Feedback</span>
+              </span>
+            </Link>
+            <Link href="/subscribe">
+              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
+                <CreditCard className="h-4 w-4" />
+                <span>Subscription</span>
               </span>
             </Link>
             {profile && (
