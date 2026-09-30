@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import { supabase, Announcement } from '@/lib/supabase-client';
-import { Bell, CreditCard, Loader as Loader2 } from 'lucide-react';
+import { Bell, Loader as Loader2 } from 'lucide-react';
 import { Wordmark } from '@/components/brand/Logo';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -63,12 +63,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Main menu */}
           <nav aria-label="Main menu" className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-1 sm:justify-end sm:gap-2">
-            <Link href="/subscribe">
-              <span className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3 sm:text-sm">
-                <CreditCard className="h-4 w-4" />
-                <span>Subscription</span>
-              </span>
-            </Link>
             <div className="relative">
               <button
                 type="button"
