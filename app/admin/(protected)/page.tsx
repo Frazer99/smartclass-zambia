@@ -51,6 +51,14 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode; group?: string }[] 
   { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
 ];
 
+async function edgeFunctionErrorMessage(error: any, fallback: string): Promise<string> {
+  if (error?.context instanceof Response) {
+    const payload = await error.context.clone().json().catch(() => null);
+    if (typeof payload?.error === 'string' && payload.error.trim()) return payload.error;
+  }
+  return error?.message || fallback;
+}
+
 // Import icons used in TABS
 import { ChartBar as BarChart3, TrendingUp, FileText, BookOpen, CircleHelp as HelpCircle, CreditCard, Users, Layers, Settings, ShieldAlert, MessageSquare, Activity } from 'lucide-react';
 
@@ -605,7 +613,10 @@ export default function AdminPage() {
         source_reference: form.source_reference || null, content_summary: form.content_summary || null,
       },
     });
-    if (materialError || !material?.data) { toast.error(`Failed to add material: ${materialError?.message || 'No material was returned.'}`); return; }
+    if (materialError || !material?.data) {
+      toast.error(`Failed to add material: ${await edgeFunctionErrorMessage(materialError, 'No material was returned.')}`);
+      return;
+    }
     let storagePath: string | null = null;
     let ingestionStarted = false;
     try {
@@ -618,7 +629,7 @@ export default function AdminPage() {
           const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-video-material', {
             body: { material_id: material.data.id, storage_path: storagePath },
           });
-          if (ingestError) throw new Error(`Video transcription failed: ${ingestError.message}. Confirm ingest-video-material is deployed and OPENAI_API_KEY is configured.`);
+          if (ingestError) throw new Error(`Video transcription failed: ${await edgeFunctionErrorMessage(ingestError, 'The video could not be transcribed.')}`);
           if (!ingestResult?.success || !ingestResult.transcribed_characters) throw new Error('Video was uploaded but no transcript was created.');
         } else {
         storagePath = `${createClientId()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -628,10 +639,7 @@ export default function AdminPage() {
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
           body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, subject_id: form.subject_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
         });
-        if (ingestError) {
-          const context = ingestError.context instanceof Response ? ` (HTTP ${ingestError.context.status})` : '';
-          throw new Error(`PDF processing failed${context}: ${ingestError.message}. Confirm ingest-material is deployed to the configured Supabase project.`);
-        }
+        if (ingestError) throw new Error(`PDF processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The PDF could not be processed.')}`);
         if (!ingestResult?.success || !ingestResult.extracted_characters) {
           throw new Error('PDF was uploaded but could not be indexed for AI use.');
         }
@@ -708,12 +716,7 @@ export default function AdminPage() {
         body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: null, answer_storage_path: answerStoragePath, answer_extracted_text: null, material_type: 'past_paper' },
       });
       if (ingestError) {
-        let detail = ingestError.message;
-        if (ingestError.context instanceof Response) {
-          const payload = await ingestError.context.clone().json().catch(() => null);
-          detail = payload?.error || detail;
-        }
-        throw new Error(detail);
+        throw new Error(await edgeFunctionErrorMessage(ingestError, 'The past paper PDF could not be processed.'));
       }
       if (!ingestResult.past_paper_id) throw new Error('The PDF did not contain enough paper details to create a past paper.');
       const { error: linkError } = await supabase.from('past_papers').update({ storage_path: storagePath, source_material_id: material.id }).eq('id', ingestResult.past_paper_id);
@@ -871,7 +874,7 @@ export default function AdminPage() {
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
         body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, subject_id, grade: Number(grade), material_type: 'syllabus' },
       });
-      if (ingestError) throw new Error(`Syllabus processing failed: ${ingestError.message}`);
+      if (ingestError) throw new Error(`Syllabus processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The syllabus PDF could not be processed.')}`);
       if (!ingestResult?.success || !ingestResult.extracted_characters) throw new Error('Syllabus was uploaded but could not be indexed for AI use.');
       toast.success(`Syllabus processed. ${ingestResult.topics_created || 0} topics generated.`);
       setSyllabusUpload({ subject_id: '', grade: '', file: null, title: '' });
