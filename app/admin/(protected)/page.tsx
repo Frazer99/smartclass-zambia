@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { supabase, Subject, Topic, Lesson, LessonContent, ContentMaterial, PracticeQuestion, PastPaper, UserFeedback, Announcement } from '@/lib/supabase-client';
-import { Shield, Loader as Loader2 } from 'lucide-react';
+import { Shield, Loader as Loader2, Menu, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { OverviewTab } from './tabs/overview-tab';
@@ -58,6 +58,7 @@ export default function AdminPage() {
   const { profile } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab | null>('overview');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -1009,36 +1010,47 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center">
-          <Shield className="h-5 w-5 text-gold" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-gold" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-semibold text-chalk">Admin Dashboard</h1>
+            <p className="text-muted-board text-sm">Manage platform content, users, curriculum, and analytics.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-chalk">Admin Dashboard</h1>
-          <p className="text-muted-board text-sm">Manage platform content, users, curriculum, and analytics.</p>
-        </div>
-      </div>
-
-      <div className="card-board p-3 space-y-3">
-        <span className="text-xs uppercase tracking-widest text-gold font-semibold">Sections</span>
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Admin sections">
-          {TABS.map((tab) => {
-            const selected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-expanded={selected}
-                onClick={() => setActiveTab(selected ? null : tab.id)}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${selected ? 'border-gold bg-gold/10 text-gold' : 'border-white/10 text-muted-board hover:border-gold/50 hover:text-chalk'}`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            );
-          })}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Open admin menu"
+            aria-expanded={menuOpen}
+            title="Menu"
+            className="flex items-center justify-center rounded-lg px-2 py-2 text-muted-board transition-colors hover:bg-white/5 hover:text-chalk sm:px-3"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-8rem)] w-[min(16rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-white/15 bg-board-deep p-2 shadow-xl" role="menu" aria-label="Admin sections">
+              {TABS.map((tab) => {
+                const selected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="menuitem"
+                    aria-current={selected ? 'page' : undefined}
+                    onClick={() => { setActiveTab(selected ? null : tab.id); setMenuOpen(false); }}
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${selected ? 'bg-gold/10 text-gold' : 'text-muted-board hover:bg-white/5 hover:text-chalk'}`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
