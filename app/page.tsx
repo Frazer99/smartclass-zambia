@@ -19,23 +19,17 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [featureIndex, setFeatureIndex] = useState(0);
-  const [featureVisible, setFeatureVisible] = useState(true);
 
   useEffect(() => {
     if (!loading && user) router.push('/dashboard');
   }, [user, loading, router]);
 
   useEffect(() => {
-    const hideTimer = window.setTimeout(() => setFeatureVisible(false), 2600);
-    const replaceTimer = window.setTimeout(() => {
+    const timer = window.setInterval(() => {
       setFeatureIndex((current) => (current + 1) % FEATURE_ITEMS.length);
-      setFeatureVisible(true);
-    }, 3200);
-    return () => {
-      window.clearTimeout(hideTimer);
-      window.clearTimeout(replaceTimer);
-    };
-  }, [featureIndex]);
+    }, 4800);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-board text-chalk overflow-x-hidden">
@@ -90,7 +84,7 @@ export default function Home() {
         </section>
 
         {/* Features */}
-        <section className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <section className="w-full overflow-hidden py-8 sm:py-10">
           <div className="min-h-[156px] flex items-center justify-center">
             {(() => {
               const feature = FEATURE_ITEMS[featureIndex];
@@ -98,7 +92,7 @@ export default function Home() {
               return (
                 <div
                   key={feature.title}
-                  className={`card-board w-full feature-card p-4 sm:p-5 ${featureVisible ? 'feature-card-visible' : 'feature-card-hidden'}`}
+                  className="card-board feature-card w-[min(32rem,calc(100vw-2rem))] p-4 sm:p-5"
                   aria-live="polite"
                 >
                   <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center text-gold mb-3">
