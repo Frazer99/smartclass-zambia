@@ -585,7 +585,7 @@ export default function AdminPage() {
       body: {
         title: form.title, source: form.source, material_type: form.material_type,
         subject_id: form.subject_id || null, grade: form.grade ? parseInt(form.grade) : null,
-        source_reference: form.source_reference || null, content_summary: form.content_summary || null, status: form.status,
+        source_reference: form.source_reference || null, content_summary: form.content_summary || null,
       },
     });
     if (materialError || !material?.data) { toast.error(`Failed to add material: ${materialError?.message || 'No material was returned.'}`); return; }

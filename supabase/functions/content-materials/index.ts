@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
     // POST / — create a new content material
     if (method === "POST" && (path === "" || path === "/")) {
       const body = await req.json();
-      const { title, source, material_type, subject_id, grade, source_reference, content_summary, status } = body;
+      const { title, source, material_type, subject_id, grade, source_reference, content_summary } = body;
 
       if (!title || !source) {
         return new Response(JSON.stringify({ error: "Title and source are required" }), {
@@ -116,7 +116,7 @@ Deno.serve(async (req: Request) => {
           grade: grade || null,
           source_reference: source_reference || null,
           content_summary: content_summary || null,
-          status: status || "pending",
+          status: "approved",
         })
         .select()
         .single();

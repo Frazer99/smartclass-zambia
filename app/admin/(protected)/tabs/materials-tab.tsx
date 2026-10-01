@@ -133,11 +133,6 @@ export function MaterialsTab({
                 {FORMS.map((g) => <option key={g} value={g}>Form {g}</option>)}
               </select>
             </FormField>
-            <FormField label="Status">
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="form-input">
-                {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </FormField>
             <FormField label="PDF or video file" required>
               <input
                 type="file"
