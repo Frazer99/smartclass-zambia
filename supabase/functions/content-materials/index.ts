@@ -191,6 +191,28 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      const { data: material, error: materialLookupError } = await supabase
+        .from("content_materials")
+        .select("id, material_type")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (materialLookupError) throw materialLookupError;
+      if (!material) {
+        return new Response(JSON.stringify({ error: "Material not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (material.material_type === "syllabus" || material.material_type === "curriculum") {
+        const { error: topicsError } = await supabase
+          .from("topics")
+          .delete()
+          .eq("source_material_id", id);
+        if (topicsError) throw topicsError;
+      }
+
       const { error } = await supabase
         .from("content_materials")
         .delete()
