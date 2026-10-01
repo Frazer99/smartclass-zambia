@@ -13,7 +13,7 @@ const FORMS = [1, 2, 3, 4, 5, 6];
 const gradeDescriptions: Record<number, { stage: string; subjects: string }> = {
   1: { stage: 'Junior Secondary', subjects: 'Mathematics, Science' },
   2: { stage: 'Junior Secondary', subjects: 'Mathematics, Science' },
-  3: { stage: 'Junior Secondary', subjects: 'Mathematics, Science' },
+  3: { stage: 'Junior Secondary', subjects: 'Mathematics, Physics, Chemistry' },
   4: { stage: 'Senior Secondary', subjects: 'Mathematics, Physics, Chemistry' },
   5: { stage: 'Senior Secondary', subjects: 'Mathematics, Physics, Chemistry' },
   6: { stage: 'Senior Secondary — Exam Prep', subjects: 'Mathematics, Physics, Chemistry' },
@@ -145,7 +145,7 @@ export default function OnboardingPage() {
           </div>
 
           <p className="text-xs text-ink/50 mb-6">
-            {selectedGrade <= 3
+            {selectedGrade <= 2
               ? 'You will study Mathematics and Science following the Zambian Curriculum.'
               : 'You will study Mathematics, Physics, and Chemistry following the Zambian Curriculum.'}
           </p>

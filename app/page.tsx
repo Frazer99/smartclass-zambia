@@ -119,14 +119,14 @@ export default function Home() {
         <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
           <h2 className="font-display text-2xl font-semibold text-center mb-2">Form 1–6</h2>
           <p className="text-muted-board text-center mb-8 text-sm">
-            Science and Mathematics for Form 1–3; Mathematics, Physics, and Chemistry for
-            Form 4–6 — covering the full Zambian Curriculum, Junior to Senior Secondary.
+            Science and Mathematics for Form 1–2; Mathematics, Physics, and Chemistry for
+            Form 3–6 — covering the full Zambian Curriculum, Junior to Senior Secondary.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               { grade: 1, stage: 'Junior Secondary', topics: 'Integers, Algebra, Basic Science' },
               { grade: 2, stage: 'Junior Secondary', topics: 'Linear Equations, Ratios, Science' },
-              { grade: 3, stage: 'Junior Secondary', topics: 'Geometry, Statistics, Science' },
+              { grade: 3, stage: 'Junior Secondary', topics: 'Geometry, Statistics, Physics, Chemistry' },
               { grade: 4, stage: 'Senior Secondary', topics: 'Quadratics, Physics, Chemistry' },
               { grade: 5, stage: 'Senior Secondary', topics: 'Trigonometry, Physics, Chemistry' },
               { grade: 6, stage: 'Senior Secondary — Exam Prep', topics: 'Calculus, Advanced Physics, Past Papers' },

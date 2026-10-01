@@ -47,7 +47,7 @@ if not db.query(User).filter(User.email == "student@smartclass.zm").first():
 db.commit()
 
 # --- Subjects & Form offerings ----------------------------------------------
-# Form 2-3: Mathematics + Science. Form 4-6: Mathematics + Physics + Chemistry.
+# Form 2: Mathematics + Science. Form 3-6: Mathematics + Physics + Chemistry.
 subject_names = ["Mathematics", "Physics", "Chemistry", "Science"]
 subjects = {}
 for name in subject_names:
@@ -61,9 +61,9 @@ for name in subject_names:
 
 offerings = [
     ("Mathematics", 2), ("Mathematics", 3), ("Mathematics", 4), ("Mathematics", 5), ("Mathematics", 6),
-    ("Science", 2), ("Science", 3),
-    ("Physics", 4), ("Physics", 5), ("Physics", 6),
-    ("Chemistry", 4), ("Chemistry", 5), ("Chemistry", 6),
+    ("Science", 2),
+    ("Physics", 3), ("Physics", 4), ("Physics", 5), ("Physics", 6),
+    ("Chemistry", 3), ("Chemistry", 4), ("Chemistry", 5), ("Chemistry", 6),
 ]
 for subj_name, form in offerings:
     exists = (
