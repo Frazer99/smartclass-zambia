@@ -24,8 +24,8 @@ export default function Home() {
 
       <div className="relative z-10">
         {/* Nav */}
-        <nav className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <Wordmark size="lg" />
+        <nav className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 border-b border-white/10">
+          <Wordmark size="sm" />
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/login')}
@@ -40,15 +40,15 @@ export default function Home() {
         </nav>
 
         {/* Hero */}
-        <section className="max-w-4xl mx-auto px-6 pt-20 pb-14 text-center">
-          <Wordmark size="hero" />
-          <svg className="mx-auto mt-2 mb-6" width="220" height="14" viewBox="0 0 220 14">
+        <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-10 sm:pb-14 text-center">
+          <Wordmark size="lg" className="justify-center" />
+          <svg className="mx-auto mt-2 mb-4 sm:mb-6" width="180" height="12" viewBox="0 0 220 14">
             <path d="M2 10 Q 55 -2, 110 8 T 218 6" fill="none" stroke="hsl(41 76% 60%)" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
-          <p className="font-hand text-2xl text-muted-board leading-snug mb-8">
+          <p className="font-hand text-xl sm:text-2xl text-muted-board leading-snug mb-5 sm:mb-8">
             Your AI teacher, anytime, anywhere.
           </p>
-          <p className="text-chalk/70 text-base max-w-xl mx-auto mb-10">
+          <p className="text-chalk/70 text-sm sm:text-base max-w-xl mx-auto mb-6 sm:mb-10">
             Learn Form 1–6 Mathematics (plus Science, Physics, and Chemistry) with an AI
             teacher that speaks, listens, and adapts to your pace — aligned to the
             Zambian Curriculum.
@@ -67,7 +67,7 @@ export default function Home() {
         </section>
 
         {/* Features */}
-        <section className="max-w-5xl mx-auto px-6 py-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
             { icon: Mic, title: 'Voice Interactive', desc: 'Your AI teacher speaks and listens. Ask questions out loud and get spoken answers.' },
             { icon: PenTool, title: 'Smart Board', desc: 'Watch equations, diagrams, and step-by-step solutions appear on a digital smart board.' },
@@ -75,8 +75,8 @@ export default function Home() {
             { icon: MapPin, title: 'Zambian Context', desc: 'Learn with examples you know — kwacha, mealie meal, local bus routes, and more.' },
             { icon: BookOpen, title: 'Zambian Curriculum Aligned', desc: 'Every lesson maps to the Zambian Curriculum syllabus for your subject and form.' },
             { icon: Sparkles, title: 'SmartTeach Engine', desc: 'An AI engine that teaches like a real teacher — not just a chatbot that answers.' },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="card-board p-5">
+          ].map(({ icon: Icon, title, desc }, index) => (
+            <div key={title} className="card-board feature-card p-4 sm:p-5" style={{ animationDelay: `${index * 90}ms` }}>
               <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center text-gold mb-3">
                 <Icon className="h-5 w-5" />
               </div>
@@ -87,7 +87,7 @@ export default function Home() {
         </section>
 
         {/* Forms */}
-        <section className="max-w-5xl mx-auto px-6 py-10">
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
           <h2 className="font-display text-2xl font-semibold text-center mb-2">Form 1–6</h2>
           <p className="text-muted-board text-center mb-8 text-sm">
             Science and Mathematics for Form 1–3; Mathematics, Physics, and Chemistry for
@@ -115,8 +115,8 @@ export default function Home() {
         </section>
 
         {/* CTA */}
-        <section className="max-w-3xl mx-auto px-6 py-14">
-          <div className="card-board p-8 sm:p-12 text-center">
+        <section className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+          <div className="card-board p-6 sm:p-12 text-center">
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-chalk mb-3">
               Ready to start learning?
             </h2>

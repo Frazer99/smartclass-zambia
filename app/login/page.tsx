@@ -122,9 +122,9 @@ export default function LoginPage() {
           style={{ transform: 'rotate(0.4deg)' }}
         >
           <h2 className="font-display text-2xl font-semibold text-ink mb-1">Log in</h2>
-          <p className="text-sm text-ink/60 mb-6">Continue your learning journey.</p>
+          <p className="text-sm text-ink/60 mb-4">Continue your learning journey.</p>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
               <label className="block text-xs uppercase tracking-widest text-ink/50 font-semibold mb-1.5">
                 Email
@@ -156,7 +156,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn-gold w-full mt-6 py-3 flex items-center justify-center gap-2"
+            className="btn-gold w-full mt-4 py-2.5 flex items-center justify-center gap-2"
           >
             {submitting ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Logging in...</>

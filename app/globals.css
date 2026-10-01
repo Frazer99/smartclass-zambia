@@ -244,6 +244,10 @@
   .animate-fade-in { animation: fadeIn 0.4s ease-out; }
   .animate-slide-up { animation: slideUp 0.3s ease-out; }
   .animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
+  .feature-card {
+    opacity: 0;
+    animation: slideUp 0.55s ease-out forwards;
+  }
   @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
   .form-input {
     width: 100%;
@@ -276,6 +280,17 @@
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-card,
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-slide-in-right {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Whiteboard handwriting animation */
