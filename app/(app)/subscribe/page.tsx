@@ -16,7 +16,7 @@ export default function SubscribePage() {
   const [targetChildId, setTargetChildId] = useState<string | null>(null);
   const [targetChildName, setTargetChildName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<'mobile_money' | 'airtel_money' | 'card' | null>(null);
-  const [phoneNumber, setPhoneNumber] = useState('260');
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   useEffect(() => {
     void (async () => {
@@ -58,7 +58,7 @@ export default function SubscribePage() {
       const isAirtel = paymentMethod === 'airtel_money';
       const mobileMoneyNumber = phoneNumber.startsWith('0') ? `260${phoneNumber.slice(1)}` : phoneNumber;
       if ((isAirtel || paymentMethod === 'mobile_money') && !/^260\d{9}$/.test(mobileMoneyNumber)) {
-        toast.error(`Enter a valid ${isAirtel ? 'Airtel' : 'MTN'} Zambia number, for example 0971234567 or 260971234567.`);
+        toast.error(`Enter a valid ${isAirtel ? 'Airtel' : 'MTN'} Zambia number, for example ${isAirtel ? '0971234567' : '0961234567'} or its 260 international format.`);
         return;
       }
       const reference = `SCZ-${(targetChildId || session.user.id).slice(0, 8)}-${Date.now()}`;
@@ -113,7 +113,7 @@ export default function SubscribePage() {
             placeholder="260971234567"
             className="w-full rounded-lg border border-white/15 bg-transparent px-4 py-3 text-sm text-chalk outline-none focus:border-gold"
           />
-          <p className="text-xs text-muted-board">Use either 0971234567 or 260971234567.</p>
+          <p className="text-xs text-muted-board">MTN: 0961234567. Airtel: 0971234567. International format is also accepted.</p>
         </div>
         <button onClick={() => void startPayment('mobile_money')} disabled={submitting !== null} className="w-full flex items-center gap-3 border border-white/15 hover:border-gold rounded-lg px-4 py-4 transition-colors disabled:opacity-50">
           <Smartphone className="h-5 w-5 text-gold" />
