@@ -34,6 +34,7 @@ export function OverviewTab({
   onDeleteAnnouncement: (id: string) => Promise<boolean>;
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [expandedStats, setExpandedStats] = useState<Set<string>>(new Set());
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
   const [postingAnnouncement, setPostingAnnouncement] = useState(false);
@@ -59,15 +60,24 @@ export function OverviewTab({
     setDeletingAnnouncementId(null);
   };
 
+  const toggleStat = (label: string) => {
+    setExpandedStats((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard value={String(userCount)} label="Users" icon={<Users className="h-4 w-4" />} />
-        <StatCard value={String(topicCount)} label="Topics" icon={<Layers className="h-4 w-4" />} color="text-gold" />
-        <StatCard value={String(lessonCount)} label="Lessons" icon={<BookOpen className="h-4 w-4" />} color="text-teal" />
-        <StatCard value={String(questionCount)} label="Questions" icon={<GraduationCap className="h-4 w-4" />} color="text-rust" />
-        <StatCard value={String(materialCount)} label="Materials" icon={<FileText className="h-4 w-4" />} color="text-gold" />
-        <StatCard value={String(approvedMaterials)} label="Approved" icon={<Check className="h-4 w-4" />} color="text-teal" />
+        <StatCard value={String(userCount)} label="Users" icon={<Users className="h-4 w-4" />} expanded={expandedStats.has('Users')} onClick={() => toggleStat('Users')} />
+        <StatCard value={String(topicCount)} label="Topics" icon={<Layers className="h-4 w-4" />} color="text-gold" expanded={expandedStats.has('Topics')} onClick={() => toggleStat('Topics')} />
+        <StatCard value={String(lessonCount)} label="Lessons" icon={<BookOpen className="h-4 w-4" />} color="text-teal" expanded={expandedStats.has('Lessons')} onClick={() => toggleStat('Lessons')} />
+        <StatCard value={String(questionCount)} label="Questions" icon={<GraduationCap className="h-4 w-4" />} color="text-rust" expanded={expandedStats.has('Questions')} onClick={() => toggleStat('Questions')} />
+        <StatCard value={String(materialCount)} label="Materials" icon={<FileText className="h-4 w-4" />} color="text-gold" expanded={expandedStats.has('Materials')} onClick={() => toggleStat('Materials')} />
+        <StatCard value={String(approvedMaterials)} label="Approved" icon={<Check className="h-4 w-4" />} color="text-teal" expanded={expandedStats.has('Approved')} onClick={() => toggleStat('Approved')} />
       </div>
 
       <div className="card-board p-5">
@@ -247,13 +257,13 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-function StatCard({ value, label, icon, color = 'text-chalk' }: { value: string; label: string; icon: React.ReactNode; color?: string }) {
+function StatCard({ value, label, icon, color = 'text-chalk', expanded, onClick }: { value: string; label: string; icon: React.ReactNode; color?: string; expanded: boolean; onClick: () => void }) {
   return (
-    <div className="card-board px-4 py-3 min-w-[120px]">
+    <button type="button" onClick={onClick} aria-expanded={expanded} className="card-board px-4 py-3 min-w-[120px] text-left hover:border-gold/50 transition-colors">
       <div className={`flex items-center gap-1.5 ${color} mb-1`}>{icon}</div>
-      <div className="font-mono-sc text-xl font-bold text-chalk">{value}</div>
+      {expanded && <div className="font-mono-sc text-xl font-bold text-chalk">{value}</div>}
       <div className="text-xs text-muted-board">{label}</div>
-    </div>
+    </button>
   );
 }
 
