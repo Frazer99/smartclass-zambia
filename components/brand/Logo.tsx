@@ -13,7 +13,7 @@
 
 const SIZES = {
   sm: { icon: 28, text: 'text-lg', gap: 'gap-1.5' },
-  nav: { icon: 24, text: 'text-base sm:text-lg', gap: 'gap-1.5' },
+  nav: { icon: 20, text: 'text-sm sm:text-lg', gap: 'gap-1' },
   md: { icon: 36, text: 'text-xl', gap: 'gap-2' },
   lg: { icon: 44, text: 'text-2xl', gap: 'gap-2.5' },
   hero: { icon: 60, text: 'text-4xl sm:text-5xl', gap: 'gap-3' },

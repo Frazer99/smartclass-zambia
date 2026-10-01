@@ -250,10 +250,11 @@
   .feature-card-visible {
     opacity: 1;
     transform: translateY(0);
+    animation: featureSlideIn 0.55s ease-out both;
   }
   .feature-card-hidden {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateX(-24px);
   }
   @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
   .form-input {
@@ -287,6 +288,10 @@
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes featureSlideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
