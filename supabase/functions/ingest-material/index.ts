@@ -1,6 +1,9 @@
-import pdf from "npm:pdf-parse@1.1.1";
+import pdfModule from "npm:pdf-parse@1.1.1";
 import { createClient } from "npm:@supabase/supabase-js@2.58.0";
 import { generateEmbedding } from "../_shared/embeddings.ts";
+
+type PdfParser = (bytes: Uint8Array) => Promise<{ text?: string }>;
+const parsePdf = (typeof pdfModule === "function" ? pdfModule : (pdfModule as any).default) as PdfParser;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +44,16 @@ type ParsedPaperDetails = {
   totalMarks: number | null;
   durationMinutes: number | null;
 };
+
+async function extractSelectableText(bytes: Uint8Array): Promise<string> {
+  try {
+    const parsed = await parsePdf(bytes);
+    return parsed.text?.trim() || "";
+  } catch (error) {
+    console.error("Selectable PDF text extraction failed; trying OCR:", error);
+    return "";
+  }
+}
 
 function response(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -258,8 +271,7 @@ Deno.serve(async (req: Request) => {
     if (downloadError || !file) throw new Error(downloadError?.message || "Could not download uploaded PDF");
 
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
-    const parsed = await pdf(pdfBytes);
-    let extractedText = body.extracted_text?.trim() || parsed.text.trim();
+    let extractedText = body.extracted_text?.trim() || await extractSelectableText(pdfBytes);
     if (!extractedText) extractedText = await extractScannedPdfText(pdfBytes);
 
     let answerText = body.answer_extracted_text?.trim() || "";
@@ -267,8 +279,7 @@ Deno.serve(async (req: Request) => {
       const { data: answerFile, error: answerDownloadError } = await adminClient.storage.from("content-materials").download(body.answer_storage_path);
       if (answerDownloadError || !answerFile) throw new Error(answerDownloadError?.message || "Could not download uploaded answer PDF");
       const answerBytes = new Uint8Array(await answerFile.arrayBuffer());
-      const parsedAnswers = await pdf(answerBytes);
-      answerText = parsedAnswers.text.trim() || await extractScannedPdfText(answerBytes);
+      answerText = await extractSelectableText(answerBytes) || await extractScannedPdfText(answerBytes);
     }
 
     const summary = extractedText.slice(0, 4000);
