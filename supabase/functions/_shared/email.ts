@@ -71,9 +71,6 @@ export function emailShell(title: string, bodyHtml: string): string {
           <h1 style="font-size:20px;margin:0 0 12px;color:#142019;">${title}</h1>
           ${bodyHtml}
         </td></tr>
-        <tr><td style="padding-top:16px;text-align:center;font-size:12px;color:#9FB3A8;">
-          Powered by ZedCode Technologies
-        </td></tr>
       </table>
     </td></tr>
   </table>

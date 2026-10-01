@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 export const metadata: Metadata = {
   title: 'SmartClass Zambia — Your AI Teacher, Anytime, Anywhere',
   description:
-    'AI-powered tutoring platform for Zambian Form 1–6 Mathematics, Science, Physics, and Chemistry, aligned to the Zambian Curriculum. Powered by ZedCode Technologies.',
+    'AI-powered tutoring platform for Zambian Form 1–6 Mathematics, Science, Physics, and Chemistry, aligned to the Zambian Curriculum.',
 };
 
 export default function RootLayout({

@@ -50,7 +50,7 @@ export default function ProgressReportPage() {
     </div>
     <div className="max-w-3xl mx-auto px-8 py-10 print:py-0">
       <div className="flex items-center gap-2 mb-1"><LogoMark size={28} /><span className="font-display text-lg font-semibold"><span className="text-gold-deep">SmartClass</span> Zambia</span></div>
-      <p className="text-xs text-ink/50 mb-8">Powered by ZedCode Technologies &middot; Progress Report generated {generatedDate}</p>
+      <p className="text-xs text-ink/50 mb-8">Progress Report generated {generatedDate}</p>
       <h1 className="font-display text-2xl font-bold mb-1">{profile.full_name}</h1>
       <p className="text-sm text-ink/60 mb-8">Form {profile.grade}{profile.school ? ` · ${profile.school}` : ''}</p>
       <div className="grid grid-cols-4 gap-4 mb-10 pb-8 border-b border-ink/10"><SummaryStat value={`${overallMastery}%`} label="Overall Mastery" /><SummaryStat value={`${completedLessons}/${lessons.length}`} label="Lessons Completed" /><SummaryStat value={String(totalAttempts)} label="Questions Answered" /><SummaryStat value={totalAttempts ? `${accuracy}%` : '—'} label="Accuracy" /></div>

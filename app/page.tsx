@@ -135,8 +135,6 @@ export default function Home() {
             <LogoMark size={16} />
             <span className="font-display font-semibold text-chalk">SmartClass Zambia</span>
           </span>
-          <span className="mx-2">·</span>
-          Powered by ZedCode Technologies
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs">
             <span className="text-muted-board">Contact us:</span>
             <a href="mailto:smartclasszambia@gmail.com" className="inline-flex items-center gap-1 text-gold hover:text-chalk transition-colors">

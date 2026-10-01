@@ -103,7 +103,7 @@ export default function AdminLoginPage() {
             <h2 className="font-display text-xl font-semibold text-chalk">Admin sign in</h2>
           </div>
           <p className="text-sm text-muted-board mb-6">
-            Restricted access. Admin accounts are provisioned by ZedCode Technologies.
+            Restricted access. Admin accounts are provisioned by the platform administrator.
           </p>
 
           {user && profile && profile.role !== 'admin' && (
