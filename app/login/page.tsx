@@ -191,12 +191,6 @@ export default function LoginPage() {
               Create an account
             </Link>
           </p>
-          <p className="text-center text-xs text-ink/50 mt-3 pt-3 border-t border-ink/10">
-            Admin account?{' '}
-            <Link href="/admin/login" className="font-semibold text-rust hover:underline">
-              Use the admin portal
-            </Link>
-          </p>
         </form>
       </div>
     </div>
