@@ -262,7 +262,7 @@ export default function AdminPage() {
   const fetchOverview = async () => {
     const [usersRes, topicsRes, uploadedTopicsRes, uploadedLessonsRes, uploadedPracticeQuestionsRes, uploadedPastPaperQuestionsRes, materialsRes] = await Promise.all([
       supabase.from('profiles').select('grade, role, full_name, created_at, id'),
-      supabase.from('topics').select('id, subject_id, subject:subjects(name, color)'),
+      supabase.from('topics').select('id, subject_id, subject:subjects(name, color)').not('source_material_id', 'is', null),
       supabase.from('topics').select('id', { count: 'exact', head: true }).not('source_material_id', 'is', null),
       supabase.from('lessons').select('id, topic:topics!inner(source_material_id)').not('topics.source_material_id', 'is', null),
       supabase.from('practice_questions').select('id, topic:topics!inner(source_material_id)').not('topics.source_material_id', 'is', null),
@@ -353,7 +353,10 @@ export default function AdminPage() {
       count: masteryValues.filter((v: number) => v >= r.min && v <= r.max).length,
     })));
 
-    const { data: qData } = await supabase.from('practice_questions').select('id, topic_id, topic:topics(subject_id, subject:subjects(name, color))');
+    const { data: qData } = await supabase
+      .from('practice_questions')
+      .select('id, topic_id, topic:topics!inner(subject_id, source_material_id, subject:subjects(name, color))')
+      .not('topics.source_material_id', 'is', null);
     const qSubjMap: Record<string, { count: number; color: string }> = {};
     (qData || []).forEach((q: any) => {
       const name = q.topic?.subject?.name || 'Unassigned';
@@ -457,15 +460,19 @@ export default function AdminPage() {
 
   const fetchCurriculum = async () => {
     const [topicsRes, lessonsRes] = await Promise.all([
-      supabase.from('topics').select('*, subject:subjects(name, color)').order('grade, display_order'),
-      supabase.from('lessons').select('*, topic:topics(name, subject:subjects(name, color))').order('display_order'),
+      supabase.from('topics').select('*, subject:subjects(name, color)').not('source_material_id', 'is', null).order('grade, display_order'),
+      supabase.from('lessons').select('*, topic:topics!inner(name, source_material_id, subject:subjects(name, color))').not('topics.source_material_id', 'is', null).order('display_order'),
     ]);
     setTopics(topicsRes.data as Topic[] || []);
     setLessons(lessonsRes.data as Lesson[] || []);
   };
 
   const fetchQuestions = async () => {
-    const { data } = await supabase.from('practice_questions').select('*, topic:topics(name, subject:subjects(name, color))').order('difficulty');
+    const { data } = await supabase
+      .from('practice_questions')
+      .select('*, topic:topics!inner(name, source_material_id, subject:subjects(name, color))')
+      .not('topics.source_material_id', 'is', null)
+      .order('difficulty');
     if (data) setQuestions(data as PracticeQuestion[]);
   };
 
@@ -473,6 +480,7 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('past_papers')
       .select('*, subject:subjects(name, code, color)')
+      .not('source_material_id', 'is', null)
       .order('year', { ascending: false });
     if (error) { toast.error(`Failed to load past papers: ${error.message}`); return; }
     setPastPapers((data || []) as PastPaper[]);
