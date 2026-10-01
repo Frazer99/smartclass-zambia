@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Subject, ContentMaterial } from '@/lib/supabase-client';
-import { FileText, Check, Loader as Loader2, Award, Building2, RefreshCw, Plus, X, Pencil, Trash2, ExternalLink, Sparkles } from 'lucide-react';
+import { FileText, Check, Loader as Loader2, Award, Building2, RefreshCw, Plus, X, Pencil, Trash2, ExternalLink, Sparkles, Search } from 'lucide-react';
 
 const MATERIAL_TYPES = ['curriculum', 'syllabus', 'past_paper', 'textbook', 'video', 'supplementary'];
 const STATUS_OPTIONS = ['pending', 'approved', 'ingested'];
@@ -15,9 +15,18 @@ export function MaterialsTab({
 }: any) {
   const [activeFilter, setActiveFilter] = useState<MaterialFilter>('all');
   const [showFilteredMaterials, setShowFilteredMaterials] = useState(false);
-  const filteredMaterials = activeFilter === 'all'
+  const [searchQuery, setSearchQuery] = useState('');
+  const statusFilteredMaterials = activeFilter === 'all'
     ? materials
     : materials.filter((material: ContentMaterial) => material.status === activeFilter);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredMaterials = normalizedSearchQuery
+    ? statusFilteredMaterials.filter((material: ContentMaterial) => {
+      const subjectName = (material as any).subject?.name || '';
+      return [material.title, material.source, material.material_type, subjectName]
+        .some((value) => String(value).toLowerCase().includes(normalizedSearchQuery));
+    })
+    : statusFilteredMaterials;
 
   useEffect(() => {
     if (showFilteredMaterials) {
@@ -99,11 +108,23 @@ export function MaterialsTab({
         )}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="font-display text-lg font-semibold text-chalk">All Materials</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-1.5 btn-gold text-sm px-3 py-2">
-          {showAddForm ? <><X className="h-4 w-4" /> Cancel</> : <><Plus className="h-4 w-4" /> Add Material</>}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-board" />
+            <input
+              value={searchQuery}
+              onChange={(event) => { setSearchQuery(event.target.value); setShowFilteredMaterials(true); }}
+              placeholder="Search materials"
+              aria-label="Search materials"
+              className="form-input w-56 pl-9"
+            />
+          </label>
+          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-1.5 btn-gold text-sm px-3 py-2">
+            {showAddForm ? <><X className="h-4 w-4" /> Cancel</> : <><Plus className="h-4 w-4" /> Add Material</>}
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -172,7 +193,7 @@ export function MaterialsTab({
             <tbody>
               {filteredMaterials.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-board">
-                  {activeFilter === 'all' ? 'No materials found. Use sync or add manually.' : `No ${activeFilter} materials found.`}
+                  {normalizedSearchQuery ? `No materials match "${searchQuery}".` : activeFilter === 'all' ? 'No materials found. Use sync or add manually.' : `No ${activeFilter} materials found.`}
                 </td></tr>
               ) : (
                 filteredMaterials.map((m: ContentMaterial) => (
