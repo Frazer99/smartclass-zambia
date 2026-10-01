@@ -80,6 +80,8 @@ export default function AdminPage() {
   const [topicCount, setTopicCount] = useState(0);
   const [lessonCount, setLessonCount] = useState(0);
   const [questionCount, setQuestionCount] = useState(0);
+  const [materialCount, setMaterialCount] = useState(0);
+  const [approvedMaterialCount, setApprovedMaterialCount] = useState(0);
   const [moderationFlags, setModerationFlags] = useState<any[]>([]);
   const [moderationLoading, setModerationLoading] = useState(true);
   const [feedback, setFeedback] = useState<(UserFeedback & { profile?: { full_name: string } | null; audio_url?: string | null })[]>([]);
@@ -258,17 +260,21 @@ export default function AdminPage() {
   };
 
   const fetchOverview = async () => {
-    const [usersRes, topicsRes, lessonsRes, questionsRes] = await Promise.all([
+    const [usersRes, topicsRes, lessonsRes, questionsRes, pastPaperQuestionsRes, materialsRes] = await Promise.all([
       supabase.from('profiles').select('grade, role, full_name, created_at, id'),
       supabase.from('topics').select('id, subject_id, subject:subjects(name, color)'),
       supabase.from('lessons').select('id', { count: 'exact', head: true }),
       supabase.from('practice_questions').select('id', { count: 'exact', head: true }),
+      supabase.from('past_paper_questions').select('id', { count: 'exact', head: true }),
+      supabase.from('content_materials').select('id, status'),
     ]);
 
     setUserCount(usersRes.data?.length || 0);
     setTopicCount(topicsRes.data?.length || 0);
     setLessonCount(lessonsRes.count || 0);
-    setQuestionCount(questionsRes.count || 0);
+    setQuestionCount((questionsRes.count || 0) + (pastPaperQuestionsRes.count || 0));
+    setMaterialCount(materialsRes.data?.length || 0);
+    setApprovedMaterialCount((materialsRes.data || []).filter((material: any) => ['approved', 'ingested'].includes(material.status)).length);
 
     const gradeMap: Record<number, number> = {};
     (usersRes.data || []).forEach((u: any) => { gradeMap[u.grade] = (gradeMap[u.grade] || 0) + 1; });
@@ -1023,7 +1029,7 @@ export default function AdminPage() {
       {activeTab === 'overview' && (
         <OverviewTab
           userCount={userCount} topicCount={topicCount} lessonCount={lessonCount} questionCount={questionCount}
-          materialCount={materials.length} approvedMaterials={materials.filter((m) => m.status === 'approved').length}
+          materialCount={materialCount} approvedMaterials={approvedMaterialCount}
           usersByGrade={usersByGrade} topicsBySubject={topicsBySubject}
           activityFeed={activityFeed} recentSignups={recentSignups}
           announcements={announcements} onPostAnnouncement={postAnnouncement}
