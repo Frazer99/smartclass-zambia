@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (supabaseUrl && serviceRoleKey) {
-        await createClient(supabaseUrl, serviceRoleKey).from("content_materials").update({ status: "pending", ingestion_error: message }).eq("id", materialId);
+        await createClient(supabaseUrl, serviceRoleKey).from("content_materials").update({ status: "approved", ingestion_error: message }).eq("id", materialId);
       }
     }
     return json({ error: message }, 500);

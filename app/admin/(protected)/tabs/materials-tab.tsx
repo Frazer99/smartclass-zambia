@@ -3,9 +3,9 @@ import { Subject, ContentMaterial } from '@/lib/supabase-client';
 import { FileText, Check, Loader as Loader2, Award, Building2, RefreshCw, Plus, X, Pencil, Trash2, ExternalLink, Sparkles, Search } from 'lucide-react';
 
 const MATERIAL_TYPES = ['curriculum', 'syllabus', 'past_paper', 'textbook', 'video', 'supplementary'];
-const STATUS_OPTIONS = ['pending', 'approved', 'ingested'];
+const STATUS_OPTIONS = ['approved', 'ingested'];
 const FORMS = [1, 2, 3, 4, 5, 6];
-type MaterialFilter = 'all' | 'approved' | 'pending' | 'ingested';
+type MaterialFilter = 'all' | 'approved' | 'ingested';
 
 export function MaterialsTab({
   materials, subjects, showAddForm, setShowAddForm, form, setForm, handleAdd, handleUpdate, handleDelete,
@@ -44,7 +44,6 @@ export function MaterialsTab({
       <div className="flex gap-4 flex-wrap">
         <StatCard value={String(materials.length)} label="Total" icon={<FileText className="h-4 w-4" />} active={activeFilter === 'all'} onClick={() => selectFilter('all')} />
         <StatCard value={String(materials.filter((m: ContentMaterial) => m.status === 'approved').length)} label="Approved" icon={<Check className="h-4 w-4" />} color="text-teal" active={activeFilter === 'approved'} onClick={() => selectFilter('approved')} />
-        <StatCard value={String(materials.filter((m: ContentMaterial) => m.status === 'pending').length)} label="Pending" icon={<Loader2 className="h-4 w-4" />} color="text-gold" active={activeFilter === 'pending'} onClick={() => selectFilter('pending')} />
         <StatCard value={String(materials.filter((m: ContentMaterial) => m.status === 'ingested').length)} label="Ingested" icon={<Award className="h-4 w-4" />} color="text-rust" active={activeFilter === 'ingested'} onClick={() => selectFilter('ingested')} />
       </div>
 

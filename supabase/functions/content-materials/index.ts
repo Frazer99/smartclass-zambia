@@ -52,6 +52,7 @@ Deno.serve(async (req: Request) => {
 
     // GET / — list all content materials (available to all authenticated users)
     if (method === "GET" && (path === "" || path === "/")) {
+      await supabase.from("content_materials").update({ status: "approved" }).eq("status", "pending");
       const { data, error } = await supabase
         .from("content_materials")
         .select("*, subject:subjects(name, code, color)")
@@ -154,6 +155,7 @@ Deno.serve(async (req: Request) => {
       for (const field of allowedFields) {
         if (body[field] !== undefined) updates[field] = body[field];
       }
+      if (updates.status === "pending") updates.status = "approved";
 
       const { data, error } = await supabase
         .from("content_materials")

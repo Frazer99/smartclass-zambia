@@ -449,7 +449,7 @@ Deno.serve(async (req: Request) => {
       if (body.material_id && supabaseUrl && serviceRoleKey) {
         await createClient(supabaseUrl, serviceRoleKey)
           .from("content_materials")
-          .update({ storage_path: body.storage_path || null, status: "pending", ingestion_error: message })
+          .update({ storage_path: body.storage_path || null, status: "approved", ingestion_error: message })
           .eq("id", body.material_id);
       }
     } catch {

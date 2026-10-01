@@ -146,7 +146,7 @@ export default function AdminPage() {
   const [embeddingResult, setEmbeddingResult] = useState<{ embedded: number; failed: number; remaining: number } | null>(null);
   const [form, setForm] = useState({
     title: '', source: '', material_type: 'supplementary', subject_id: '',
-    grade: '', source_reference: '', content_summary: '', status: 'pending',
+    grade: '', source_reference: '', content_summary: '', status: 'approved',
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -636,7 +636,7 @@ export default function AdminPage() {
         }
       }
       toast.success('Material added.');
-      setForm({ title: '', source: '', material_type: 'supplementary', subject_id: '', grade: '', source_reference: '', content_summary: '', status: 'pending' });
+      setForm({ title: '', source: '', material_type: 'supplementary', subject_id: '', grade: '', source_reference: '', content_summary: '', status: 'approved' });
       setSelectedFile(null);
       setShowAddForm(false); fetchMaterials();
     } catch (error) {
@@ -698,7 +698,7 @@ export default function AdminPage() {
       }
 
       const { data: material, error: materialError } = await supabase.from('content_materials').insert({
-        title: pastPaperFile.name.replace(/\.pdf$/i, ''), source: 'Uploaded PDF', material_type: 'past_paper', status: 'pending',
+        title: pastPaperFile.name.replace(/\.pdf$/i, ''), source: 'Uploaded PDF', material_type: 'past_paper', status: 'approved',
       }).select('id').single();
       if (materialError || !material) throw new Error(`Paper record creation failed: ${materialError?.message || 'No material was returned.'}`);
 
@@ -858,7 +858,7 @@ export default function AdminPage() {
     try {
       const title = syllabusUpload.title || `${subjects.find((subject) => subject.id === subject_id)?.name || 'Curriculum'} Syllabus Form ${grade}`;
       const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
-        body: { title, source: 'Admin syllabus upload', material_type: 'syllabus', subject_id, grade: Number(grade), status: 'pending' },
+        body: { title, source: 'Admin syllabus upload', material_type: 'syllabus', subject_id, grade: Number(grade), status: 'approved' },
       });
       if (materialError || !material?.data) throw new Error(materialError?.message || 'Could not create syllabus record.');
       materialId = material.data.id;
