@@ -245,7 +245,7 @@
   .animate-slide-up { animation: slideUp 0.3s ease-out; }
   .animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
   .feature-card {
-    animation: featureTraverse 5s linear both;
+    animation: featureTraverse 20s linear both;
   }
   @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
   .form-input {
