@@ -273,6 +273,16 @@ Deno.serve(async (req: Request) => {
     const body = await req.json() as IngestRequest;
     if (!body.material_id || !body.storage_path) return response({ error: "material_id and storage_path are required" }, 400);
 
+    const { data: materialRecord, error: materialLookupError } = await adminClient
+      .from("content_materials")
+      .select("subject_id, grade, material_type")
+      .eq("id", body.material_id)
+      .maybeSingle();
+    if (materialLookupError) throw materialLookupError;
+    if (!materialRecord) throw new Error("Uploaded material record was not found.");
+    const subjectId = materialRecord.subject_id || body.subject_id;
+    const materialGrade = materialRecord.grade || body.grade;
+
     const { data: file, error: downloadError } = await adminClient.storage.from("content-materials").download(body.storage_path);
     if (downloadError || !file) throw new Error(downloadError?.message || "Could not download uploaded PDF");
 
@@ -395,22 +405,22 @@ Deno.serve(async (req: Request) => {
     let topicsCreated = 0;
     if (body.material_type === "curriculum" || body.material_type === "syllabus") {
       const topics = syllabusTopics(extractedText);
-      if (!body.subject_id || !body.grade) throw new Error("A syllabus must have a subject and Form before topics can be generated.");
+      if (!subjectId || !materialGrade) throw new Error("A syllabus must have a subject and Form before topics can be generated.");
 
       // The uploaded syllabus is the source of truth for this subject/Form.
       // Replacing the scoped set also removes lessons and questions attached
       // to obsolete seeded topics through the database foreign keys.
       const { error: deleteError } = await adminClient.from("topics")
         .delete()
-        .eq("subject_id", body.subject_id)
-        .eq("grade", body.grade);
+        .eq("subject_id", subjectId)
+        .eq("grade", materialGrade);
       if (deleteError) throw deleteError;
 
       const insertedTopics: { id: string }[] = [];
       for (const topic of topics) {
         const { data: inserted, error } = await adminClient.from("topics").insert({
-          subject_id: body.subject_id || null,
-          grade: body.grade || 1,
+          subject_id: subjectId,
+          grade: materialGrade,
           name: topic.name,
           category: topic.level > 0 ? "Subtopic" : "Topic",
           syllabus_reference: topic.reference || body.storage_path,
