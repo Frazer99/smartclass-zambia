@@ -22,6 +22,7 @@ import { PersonasTab, TeacherPersona } from './tabs/personas-tab';
 import { FeedbackTab } from './tabs/feedback-tab';
 import { SystemHealthTab, ErrorLogEntry } from './tabs/system-health-tab';
 import { UserProfile } from './tabs/constants';
+import { createClientId } from '@/lib/client-id';
 
 type Tab = 'overview' | 'analytics' | 'materials' | 'lessons' | 'questions' | 'past-papers' | 'billing' | 'personas' | 'users' | 'curriculum' | 'moderation' | 'feedback' | 'system-health' | 'settings';
 
@@ -609,7 +610,7 @@ export default function AdminPage() {
     try {
       if (selectedFile) {
         if (isVideo) {
-          storagePath = `${crypto.randomUUID()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+          storagePath = `${createClientId()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
           const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, selectedFile, { contentType: selectedFile.type || 'video/mp4', upsert: false });
           if (uploadError) throw new Error(`Video upload failed: ${uploadError.message}`);
           ingestionStarted = true;
@@ -619,7 +620,7 @@ export default function AdminPage() {
           if (ingestError) throw new Error(`Video transcription failed: ${ingestError.message}. Confirm ingest-video-material is deployed and OPENAI_API_KEY is configured.`);
           if (!ingestResult?.success || !ingestResult.transcribed_characters) throw new Error('Video was uploaded but no transcript was created.');
         } else {
-        storagePath = `${crypto.randomUUID()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        storagePath = `${createClientId()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, selectedFile, { contentType: 'application/pdf', upsert: false });
         if (uploadError) throw new Error(`PDF upload failed: ${uploadError.message}`);
         ingestionStarted = true;
@@ -687,12 +688,12 @@ export default function AdminPage() {
     if (!isPdf) { toast.error('Only PDF files can be uploaded.'); return; }
     if (pastPaperAnswerFile && !(pastPaperAnswerFile.type === 'application/pdf' || /\.pdf$/i.test(pastPaperAnswerFile.name))) { toast.error('The answer file must be a PDF.'); return; }
     try {
-      const storagePath = `past-papers/${crypto.randomUUID()}-${pastPaperFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const storagePath = `past-papers/${createClientId()}-${pastPaperFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, pastPaperFile, { contentType: 'application/pdf', upsert: false });
       if (uploadError) throw new Error(`PDF storage upload failed: ${uploadError.message}`);
       let answerStoragePath: string | null = null;
       if (pastPaperAnswerFile) {
-        answerStoragePath = `past-paper-answers/${crypto.randomUUID()}-${pastPaperAnswerFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        answerStoragePath = `past-paper-answers/${createClientId()}-${pastPaperAnswerFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const { error: answerUploadError } = await supabase.storage.from('content-materials').upload(answerStoragePath, pastPaperAnswerFile, { contentType: 'application/pdf', upsert: false });
         if (answerUploadError) throw new Error(`Answer PDF upload failed: ${answerUploadError.message}`);
       }
@@ -862,7 +863,7 @@ export default function AdminPage() {
       });
       if (materialError || !material?.data) throw new Error(materialError?.message || 'Could not create syllabus record.');
       materialId = material.data.id;
-      storagePath = `${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      storagePath = `${createClientId()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, file, { contentType: 'application/pdf', upsert: false });
       if (uploadError) throw uploadError;
       ingestionStarted = true;

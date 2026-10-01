@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/components/auth-provider';
 import { supabase } from '@/lib/supabase-client';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { createClientId } from '@/lib/client-id';
 
 const CATEGORIES = [
   { value: 'suggestion', label: 'Suggestion' },
@@ -129,7 +130,7 @@ export default function FeedbackPage() {
     let audioPath: string | null = null;
     let transcriptionFailure: string | null = null;
     if (audioBlob) {
-      audioPath = `${user.id}/${crypto.randomUUID()}.webm`;
+      audioPath = `${user.id}/${createClientId()}.webm`;
       const { error: audioError } = await supabase.storage.from('feedback-recordings').upload(audioPath, audioBlob, {
         contentType: audioBlob.type || 'audio/webm',
         upsert: false,
