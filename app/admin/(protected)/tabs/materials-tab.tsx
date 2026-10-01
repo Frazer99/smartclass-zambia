@@ -121,6 +121,9 @@ export function MaterialsTab({
               className="form-input w-56 pl-9"
             />
           </label>
+          <button type="button" onClick={() => setShowFilteredMaterials(!showFilteredMaterials)} className="flex items-center gap-1.5 border border-white/15 rounded-lg px-3 py-2 text-sm text-chalk hover:border-gold transition-colors">
+            {showFilteredMaterials ? <><X className="h-4 w-4" /> Close materials</> : <><FileText className="h-4 w-4" /> Open all materials</>}
+          </button>
           <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-1.5 btn-gold text-sm px-3 py-2">
             {showAddForm ? <><X className="h-4 w-4" /> Cancel</> : <><Plus className="h-4 w-4" /> Add Material</>}
           </button>
