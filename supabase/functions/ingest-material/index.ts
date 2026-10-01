@@ -55,6 +55,12 @@ async function extractSelectableText(bytes: Uint8Array): Promise<string> {
   }
 }
 
+function hasUsableExtractedText(text: string): boolean {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const letters = (normalized.match(/[A-Za-z]/g) || []).length;
+  return normalized.length >= 80 && letters >= 20;
+}
+
 function response(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -272,14 +278,17 @@ Deno.serve(async (req: Request) => {
 
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
     let extractedText = body.extracted_text?.trim() || await extractSelectableText(pdfBytes);
-    if (!extractedText) extractedText = await extractScannedPdfText(pdfBytes);
+    if (!hasUsableExtractedText(extractedText)) {
+      extractedText = await extractScannedPdfText(pdfBytes);
+    }
 
     let answerText = body.answer_extracted_text?.trim() || "";
     if (body.answer_storage_path) {
       const { data: answerFile, error: answerDownloadError } = await adminClient.storage.from("content-materials").download(body.answer_storage_path);
       if (answerDownloadError || !answerFile) throw new Error(answerDownloadError?.message || "Could not download uploaded answer PDF");
       const answerBytes = new Uint8Array(await answerFile.arrayBuffer());
-      answerText = await extractSelectableText(answerBytes) || await extractScannedPdfText(answerBytes);
+      answerText = await extractSelectableText(answerBytes);
+      if (!hasUsableExtractedText(answerText)) answerText = await extractScannedPdfText(answerBytes);
     }
 
     const summary = extractedText.slice(0, 4000);
