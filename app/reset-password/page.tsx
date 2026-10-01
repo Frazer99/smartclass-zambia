@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
       <div className="dust" style={{ top: '20%', left: '85%', width: 4, height: 4 }} />
       <div className="dust" style={{ top: '70%', left: '8%', width: 5, height: 5, animationDelay: '4s' }} />
 
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-xs">
         <div className="text-center mb-6">
           <Wordmark size="lg" className="justify-center" />
           <svg className="mx-auto mt-2" width="160" height="12" viewBox="0 0 160 12">
@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
           </svg>
         </div>
 
-        <div className="card-paper p-8" style={{ transform: 'rotate(0.4deg)' }}>
+        <div className="card-paper auth-panel" style={{ transform: 'rotate(0.4deg)' }}>
           {done ? (
             <div className="text-center py-2">
               <CheckCircle2 className="h-10 w-10 text-teal mx-auto mb-3" />

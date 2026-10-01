@@ -70,7 +70,7 @@ export default function RegisterPage() {
     return (
       <div className="relative min-h-screen bg-board text-chalk flex flex-col items-center justify-center px-4 py-12">
         <div className="chalk-noise" />
-        <div className="relative z-10 w-full max-w-sm card-paper p-8 text-center">
+        <div className="relative z-10 w-full max-w-xs card-paper auth-panel text-center">
           <h2 className="font-display text-2xl font-semibold text-ink mb-2">Check your email</h2>
           <p className="text-sm text-ink/70 mb-6">We sent a confirmation link to {email}. Confirm your email, then log in to start learning.</p>
           <Link href="/login" className="btn-gold inline-flex px-5 py-3">Go to login</Link>
@@ -85,7 +85,7 @@ export default function RegisterPage() {
       <div className="dust" style={{ top: '15%', left: '10%', width: 4, height: 4 }} />
       <div className="dust" style={{ top: '75%', left: '85%', width: 5, height: 5, animationDelay: '3s' }} />
 
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-xs">
         <Link href="/" className="flex items-center gap-2 text-sm text-muted-board hover:text-chalk mb-6 justify-center transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to home
         </Link>
@@ -101,7 +101,7 @@ export default function RegisterPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="card-paper p-8"
+          className="card-paper auth-panel"
           style={{ transform: 'rotate(-0.5deg)' }}
         >
           <h2 className="font-display text-2xl font-semibold text-ink mb-1">Create account</h2>

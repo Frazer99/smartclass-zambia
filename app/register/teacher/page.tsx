@@ -43,7 +43,7 @@ export default function TeacherRegisterPage() {
   return (
     <div className="relative min-h-screen bg-board text-chalk flex flex-col items-center justify-center px-4 py-12">
       <div className="chalk-noise" />
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-xs">
         <Link href="/register" className="flex items-center gap-2 text-sm text-muted-board mb-6 justify-center">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -52,14 +52,14 @@ export default function TeacherRegisterPage() {
           <p className="font-hand text-lg text-muted-board mt-2">Support your school&apos;s learning.</p>
         </div>
         {submitted ? (
-          <div className="card-paper p-8 text-center">
+          <div className="card-paper auth-panel text-center">
             <Clock className="h-10 w-10 text-gold mx-auto mb-4" />
             <h1 className="font-display text-xl font-semibold text-ink mb-2">Pending approval</h1>
             <p className="text-sm text-ink/70 mb-5">Your teacher account has been created. An administrator must approve access to school analytics.</p>
             <Link href="/login" className="btn-gold inline-flex px-5 py-2.5">Go to login</Link>
           </div>
         ) : (
-          <form onSubmit={submit} className="card-paper p-8">
+          <form onSubmit={submit} className="card-paper auth-panel">
             <h1 className="font-display text-2xl font-semibold text-ink mb-1">Teacher account</h1>
             <p className="text-sm text-ink/60 mb-6">Teacher accounts require administrator approval.</p>
             <div className="space-y-4">

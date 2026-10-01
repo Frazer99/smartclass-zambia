@@ -103,7 +103,7 @@ export default function LoginPage() {
       <div className="dust" style={{ top: '20%', left: '85%', width: 4, height: 4 }} />
       <div className="dust" style={{ top: '70%', left: '8%', width: 5, height: 5, animationDelay: '4s' }} />
 
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-xs">
         <Link href="/" className="flex items-center gap-2 text-sm text-muted-board hover:text-chalk mb-6 justify-center transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to home
         </Link>
@@ -118,7 +118,7 @@ export default function LoginPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="card-paper p-8"
+          className="card-paper auth-panel"
           style={{ transform: 'rotate(0.4deg)' }}
         >
           <h2 className="font-display text-2xl font-semibold text-ink mb-1">Log in</h2>

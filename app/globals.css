@@ -52,13 +52,17 @@
   body {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
     overflow-wrap: anywhere;
+  }
+  main {
+    width: 100%;
+    max-width: 100%;
   }
   img,
   svg,
@@ -84,6 +88,13 @@
   }
   .font-mono-sc {
     font-family: 'Space Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .auth-panel {
+    width: min(100%, 22rem);
+    padding: clamp(1.25rem, 4vw, 2rem);
   }
 }
 

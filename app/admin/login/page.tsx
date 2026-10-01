@@ -83,7 +83,7 @@ export default function AdminLoginPage() {
     <div className="relative min-h-screen bg-board-deep text-chalk flex flex-col items-center justify-center px-4 py-12">
       <div className="chalk-noise" />
 
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-xs">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2">
             <LogoMark size={32} />
@@ -96,7 +96,7 @@ export default function AdminLoginPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-gold/20 bg-board p-8"
+          className="rounded-2xl border border-gold/20 bg-board auth-panel"
         >
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheck className="h-4 w-4 text-gold" />
