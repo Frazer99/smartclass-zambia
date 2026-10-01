@@ -76,7 +76,7 @@ export default function Home() {
             { icon: BookOpen, title: 'Zambian Curriculum Aligned', desc: 'Every lesson maps to the Zambian Curriculum syllabus for your subject and form.' },
             { icon: Sparkles, title: 'SmartTeach Engine', desc: 'An AI engine that teaches like a real teacher — not just a chatbot that answers.' },
           ].map(({ icon: Icon, title, desc }, index) => (
-            <div key={title} className="card-board feature-card p-4 sm:p-5" style={{ animationDelay: `${index * 90}ms` }}>
+            <div key={title} className="card-board feature-card p-4 sm:p-5" style={{ animationDelay: `${index * 160}ms` }}>
               <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center text-gold mb-3">
                 <Icon className="h-5 w-5" />
               </div>

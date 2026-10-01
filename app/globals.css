@@ -246,7 +246,7 @@
   .animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
   .feature-card {
     opacity: 0;
-    animation: slideUp 0.55s ease-out forwards;
+    animation: slideUp 0.65s ease-out forwards;
   }
   @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
   .form-input {
