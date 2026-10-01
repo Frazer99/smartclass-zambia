@@ -35,6 +35,7 @@ export function OverviewTab({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [expandedStats, setExpandedStats] = useState<Set<string>>(new Set());
+  const [expandedOverviewSections, setExpandedOverviewSections] = useState<Set<string>>(new Set());
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
   const [postingAnnouncement, setPostingAnnouncement] = useState(false);
@@ -65,6 +66,15 @@ export function OverviewTab({
       const next = new Set(current);
       if (next.has(label)) next.delete(label);
       else next.add(label);
+      return next;
+    });
+  };
+
+  const toggleOverviewSection = (section: string) => {
+    setExpandedOverviewSections((current) => {
+      const next = new Set(current);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
       return next;
     });
   };
@@ -135,8 +145,11 @@ export function OverviewTab({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="card-board p-5">
-          <h3 className="font-display text-base font-semibold text-chalk mb-4">Users by Form</h3>
-          <div className="space-y-3">
+          <button type="button" onClick={() => toggleOverviewSection('users-by-form')} aria-expanded={expandedOverviewSections.has('users-by-form')} className="w-full flex items-center justify-between text-left mb-4">
+            <span className="font-display text-base font-semibold text-chalk">Users by Form</span>
+            <ChevronDown className={`h-4 w-4 text-muted-board transition-transform ${expandedOverviewSections.has('users-by-form') ? 'rotate-180' : ''}`} />
+          </button>
+          {expandedOverviewSections.has('users-by-form') && <div className="space-y-3 animate-slide-up">
             {FORMS.map((g) => {
               const count = usersByGrade[g] || 0;
               const pct = (count / maxGradeCount) * 100;
@@ -148,12 +161,15 @@ export function OverviewTab({
                 </div>
               );
             })}
-          </div>
+          </div>}
         </div>
 
         <div className="card-board p-5">
-          <h3 className="font-display text-base font-semibold text-chalk mb-4">Topics by Subject</h3>
-          <div className="space-y-3">
+          <button type="button" onClick={() => toggleOverviewSection('topics-by-subject')} aria-expanded={expandedOverviewSections.has('topics-by-subject')} className="w-full flex items-center justify-between text-left mb-4">
+            <span className="font-display text-base font-semibold text-chalk">Topics by Subject</span>
+            <ChevronDown className={`h-4 w-4 text-muted-board transition-transform ${expandedOverviewSections.has('topics-by-subject') ? 'rotate-180' : ''}`} />
+          </button>
+          {expandedOverviewSections.has('topics-by-subject') && <div className="space-y-3 animate-slide-up">
             {topicsBySubject.map((s) => {
               const pct = (s.count / maxTopicCount) * 100;
               return (
@@ -164,7 +180,7 @@ export function OverviewTab({
                 </div>
               );
             })}
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -183,9 +199,13 @@ export function OverviewTab({
       <div className="grid gap-4 lg:grid-cols-2 animate-slide-up">
         <div className="card-board p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-4 w-4 text-gold" />
-            <h3 className="font-display text-base font-semibold text-chalk">Recent Activity</h3>
+            <button type="button" onClick={() => toggleOverviewSection('recent-activity')} aria-expanded={expandedOverviewSections.has('recent-activity')} className="w-full flex items-center gap-2 text-left">
+              <Activity className="h-4 w-4 text-gold" />
+              <span className="font-display text-base font-semibold text-chalk">Recent Activity</span>
+              <ChevronDown className={`ml-auto h-4 w-4 text-muted-board transition-transform ${expandedOverviewSections.has('recent-activity') ? 'rotate-180' : ''}`} />
+            </button>
           </div>
+          {expandedOverviewSections.has('recent-activity') && <div className="animate-slide-up">
           {activityFeed.length === 0 ? (
             <p className="text-muted-board text-sm text-center py-4">No activity yet.</p>
           ) : (
@@ -203,13 +223,18 @@ export function OverviewTab({
               ))}
             </div>
           )}
+          </div>}
         </div>
 
         <div className="card-board p-5">
           <div className="flex items-center gap-2 mb-4">
-            <UserPlus className="h-4 w-4 text-teal" />
-            <h3 className="font-display text-base font-semibold text-chalk">Recent Signups</h3>
+            <button type="button" onClick={() => toggleOverviewSection('recent-signups')} aria-expanded={expandedOverviewSections.has('recent-signups')} className="w-full flex items-center gap-2 text-left">
+              <UserPlus className="h-4 w-4 text-teal" />
+              <span className="font-display text-base font-semibold text-chalk">Recent Signups</span>
+              <ChevronDown className={`ml-auto h-4 w-4 text-muted-board transition-transform ${expandedOverviewSections.has('recent-signups') ? 'rotate-180' : ''}`} />
+            </button>
           </div>
+          {expandedOverviewSections.has('recent-signups') && <div className="animate-slide-up">
           {recentSignups.length === 0 ? (
             <p className="text-muted-board text-sm text-center py-4">No users yet.</p>
           ) : (
@@ -228,6 +253,7 @@ export function OverviewTab({
               ))}
             </div>
           )}
+          </div>}
         </div>
       </div>
 
