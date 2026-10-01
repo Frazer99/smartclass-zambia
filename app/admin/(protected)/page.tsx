@@ -166,6 +166,7 @@ export default function AdminPage() {
   const [topicForm, setTopicForm] = useState({ subject_id: '', grade: '', name: '', category: '', syllabus_reference: '', display_order: 0, description: '' });
   const [syllabusUpload, setSyllabusUpload] = useState<any>({ subject_id: '', grade: '', file: null, title: '' });
   const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
+  const [reprocessingSyllabusId, setReprocessingSyllabusId] = useState<string | null>(null);
   const [showPastPaperForm, setShowPastPaperForm] = useState(false);
   const [editingPastPaper, setEditingPastPaper] = useState<PastPaper | null>(null);
   const [pastPaperForm, setPastPaperForm] = useState({
@@ -897,6 +898,31 @@ export default function AdminPage() {
     }
   };
 
+  const handleReprocessSyllabus = async (material: ContentMaterial) => {
+    if (!material.storage_path) { toast.error('This syllabus has no stored PDF to transcribe.'); return; }
+    setReprocessingSyllabusId(material.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('ingest-material', {
+        body: {
+          material_id: material.id,
+          storage_path: material.storage_path,
+          extracted_text: null,
+          subject_id: material.subject_id,
+          grade: material.grade,
+          material_type: material.material_type,
+        },
+      });
+      if (error) throw new Error(`Syllabus transcription failed: ${await edgeFunctionErrorMessage(error, 'The syllabus could not be transcribed.')}`);
+      if (!data?.success || !data.extracted_characters) throw new Error('The syllabus was processed but no text was extracted.');
+      toast.success(`Syllabus transcribed: ${data.extracted_characters.toLocaleString()} characters found.`);
+      fetchMaterials(); fetchCurriculum();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Syllabus transcription failed.');
+    } finally {
+      setReprocessingSyllabusId(null);
+    }
+  };
+
   const handleLessonEdit = (lesson: Lesson) => {
     setEditingLesson(lesson);
     setLessonForm({
@@ -1154,7 +1180,7 @@ export default function AdminPage() {
           topicForm={topicForm} setTopicForm={setTopicForm} onTopicSubmit={handleTopicSubmit}
           syllabusUpload={syllabusUpload} setSyllabusUpload={setSyllabusUpload}
           onSyllabusUpload={handleSyllabusUpload} uploadingSyllabus={uploadingSyllabus}
-          onDeleteSyllabus={handleDelete}
+          onDeleteSyllabus={handleDelete} onReprocessSyllabus={handleReprocessSyllabus}
         />
       )}
 

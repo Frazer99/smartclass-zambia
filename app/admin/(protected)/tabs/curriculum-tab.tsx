@@ -11,7 +11,7 @@ export function CurriculumTab({
   materials,
   curriculumSubjectFilter, setCurriculumSubjectFilter,
   showTopicForm, setShowTopicForm, topicForm, setTopicForm, onTopicSubmit,
-  syllabusUpload, setSyllabusUpload, onSyllabusUpload, uploadingSyllabus, onDeleteSyllabus,
+  syllabusUpload, setSyllabusUpload, onSyllabusUpload, uploadingSyllabus, onDeleteSyllabus, onReprocessSyllabus,
 }: {
   subjects: Subject[]; topics: Topic[]; lessons: Lesson[];
   materials: ContentMaterial[];
@@ -20,6 +20,7 @@ export function CurriculumTab({
   topicForm: any; setTopicForm: (v: any) => void; onTopicSubmit: () => void;
   syllabusUpload: any; setSyllabusUpload: (v: any) => void; onSyllabusUpload: () => void; uploadingSyllabus: boolean;
   onDeleteSyllabus: (id: string) => void;
+  onReprocessSyllabus: (material: ContentMaterial) => void;
 }) {
   const [showTopics, setShowTopics] = useState(false);
   const syllabusMaterials = materials.filter((material) => material.material_type === 'syllabus' || material.material_type === 'curriculum');
@@ -80,6 +81,9 @@ export function CurriculumTab({
               <p className="text-xs text-muted-board">{material.subject?.name || 'All subjects'}{material.grade ? ` · Form ${material.grade}` : ''} · {material.status}</p>
             </div>
             <div className="flex items-center gap-2">
+              {material.storage_path && <button type="button" onClick={() => onReprocessSyllabus(material)} className="inline-flex items-center gap-1.5 border border-teal/40 rounded-lg px-3 py-2 text-xs text-teal hover:bg-teal/10 transition-colors">
+                <Loader2 className="h-3.5 w-3.5" /> Reprocess transcription
+              </button>}
               {material.storage_path && <button type="button" onClick={async () => {
                 const { data } = await supabase.storage.from('content-materials').createSignedUrl(material.storage_path!, 300);
                 if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
