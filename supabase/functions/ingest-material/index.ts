@@ -72,6 +72,18 @@ function hasEncodedPdfText(text: string): boolean {
   return /\b0[A-Za-z]+/.test(text) || decodedMarkers >= 2;
 }
 
+function decodeEncodedPdfText(text: string): string {
+  return text
+    .replace(/[A-Za-z]/g, (character) => {
+      const base = character >= "a" && character <= "z" ? 97 : 65;
+      return String.fromCharCode(((character.charCodeAt(0) - base - 3 + 26) % 26) + base);
+    })
+    .replace(/\b0(?=[A-Z])/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function response(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -300,7 +312,13 @@ Deno.serve(async (req: Request) => {
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
     let extractedText = body.extracted_text?.trim() || await extractSelectableText(pdfBytes);
     if (body.force_ocr || !hasUsableExtractedText(extractedText) || hasEncodedPdfText(extractedText)) {
-      extractedText = await extractScannedPdfText(pdfBytes);
+      try {
+        extractedText = await extractScannedPdfText(pdfBytes);
+      } catch (error) {
+        if (!hasEncodedPdfText(extractedText)) throw error;
+        console.error("OCR unavailable; decoding the PDF text layer locally:", error);
+        extractedText = decodeEncodedPdfText(extractedText);
+      }
     }
 
     let answerText = body.answer_extracted_text?.trim() || "";
