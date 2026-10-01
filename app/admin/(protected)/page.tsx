@@ -1018,29 +1018,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="card-board p-3 space-y-3">
-        <span className="text-xs uppercase tracking-widest text-gold font-semibold">Sections</span>
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Admin sections">
-          {TABS.map((tab) => {
-            const selected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-expanded={selected}
-                onClick={() => setActiveTab(selected ? null : tab.id)}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${selected ? 'border-gold bg-gold/10 text-gold' : 'border-white/10 text-muted-board hover:border-gold/50 hover:text-chalk'}`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {activeTab === 'overview' && (
         <OverviewTab
           userCount={userCount} topicCount={topicCount} lessonCount={lessonCount} questionCount={questionCount}
