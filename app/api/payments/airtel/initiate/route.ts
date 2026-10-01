@@ -75,11 +75,26 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const data = await response.json();
-    if (!response.ok) return NextResponse.json(data, { status: response.status });
+    const responseText = await response.text();
+    let data: Record<string, any> = {};
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      data = { message: responseText };
+    }
+    if (!response.ok) {
+      return errorResponse(
+        data?.message || data?.error || data?.status?.message || 'Airtel rejected the payment request.',
+        response.status,
+      );
+    }
 
-    const providerToken = data?.data?.transaction?.id;
-    if (!providerToken) return errorResponse("Airtel did not return a transaction ID.", 502);
+    const providerToken = data?.data?.transaction?.id
+      || data?.data?.transaction?.transaction_id
+      || data?.transaction?.id
+      || data?.transaction?.transaction_id
+      || data?.data?.transaction_id;
+    if (!providerToken) return errorResponse(data?.message || data?.status?.message || 'Airtel did not return a transaction ID.', 502);
     const { error: insertError } = await supabase.from("payments").insert({
       user_id: userId,
       subject_id: subjectId,
