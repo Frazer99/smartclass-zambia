@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Subject, PastPaper } from '@/lib/supabase-client';
-import { FileCheck, Plus, X, Pencil, Trash2, Upload } from 'lucide-react';
+import { FileCheck, Plus, X, Pencil, Trash2, Upload, Search } from 'lucide-react';
 
 export function PastPapersTab({
   papers, subjects, showForm, setShowForm,
@@ -20,6 +20,17 @@ export function PastPapersTab({
   selectedAnswerFile: File | null; setSelectedAnswerFile: (file: File | null) => void;
 }) {
   const [showTable, setShowTable] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visiblePapers = normalizedSearchQuery
+    ? papers.filter((paper) => [
+      paper.title,
+      paper.source,
+      paper.year,
+      paper.grade,
+      (paper as any).subject?.name,
+    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearchQuery)))
+    : papers;
   return (
     <div className="space-y-5">
       <div className="flex gap-4 flex-wrap">
@@ -30,14 +41,20 @@ export function PastPapersTab({
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="font-display text-lg font-semibold text-chalk">Past papers</h2>
           <p className="text-sm text-muted-board">Add papers that pupils can browse and practise.</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 btn-gold text-sm px-3 py-2">
-          {showForm ? <><X className="h-4 w-4" /> Cancel</> : <><Plus className="h-4 w-4" /> Add Paper</>}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-board" />
+            <input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setShowTable(true); }} placeholder="Search past papers" aria-label="Search past papers" className="form-input w-56 pl-9" />
+          </label>
+          <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 btn-gold text-sm px-3 py-2">
+            {showForm ? <><X className="h-4 w-4" /> Cancel</> : <><Plus className="h-4 w-4" /> Add Paper</>}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -64,7 +81,7 @@ export function PastPapersTab({
               <th className="px-4 py-3">Title</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3">Grade / Form</th><th className="px-4 py-3">Year</th><th className="px-4 py-3">Source</th><th className="px-4 py-3 text-right">Actions</th>
             </tr></thead>
             <tbody>
-              {papers.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-board">No past papers found.</td></tr> : papers.map((paper) => (
+              {visiblePapers.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-board">{normalizedSearchQuery ? `No past papers match "${searchQuery}".` : 'No past papers found.'}</td></tr> : visiblePapers.map((paper) => (
                 <tr key={paper.id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="px-4 py-3 text-chalk font-medium">{paper.title}</td>
                   <td className="px-4 py-3 text-muted-board text-xs">{(paper as any).subject?.name || '—'}</td>
