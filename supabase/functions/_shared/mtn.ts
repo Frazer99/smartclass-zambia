@@ -45,8 +45,16 @@ async function getAccessToken(): Promise<string> {
     },
     body: "grant_type=client_credentials",
   });
-  if (!response.ok) throw new Error(`MTN token request failed (${response.status})`);
-  const data = await response.json();
+  const responseText = await response.text();
+  let data: Record<string, any> = {};
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    data = { message: responseText };
+  }
+  if (!response.ok) {
+    throw new Error(`MTN token request failed (${response.status})${data.message ? `: ${data.message}` : ""}`);
+  }
   if (!data.access_token) throw new Error("MTN token response did not include an access token");
   return data.access_token;
 }
@@ -73,7 +81,17 @@ export async function requestToPay(params: {
       payeeNote: "SmartClass Zambia subscription",
     }),
   });
-  if (!response.ok) throw new Error(`MTN payment request failed (${response.status})`);
+  if (!response.ok) {
+    const responseText = await response.text();
+    let message = responseText;
+    try {
+      const data = responseText ? JSON.parse(responseText) : {};
+      message = data.message || data.reason || data.error || responseText;
+    } catch {
+      // Keep the provider's plain-text response.
+    }
+    throw new Error(`MTN payment request failed (${response.status})${message ? `: ${message}` : ""}`);
+  }
 }
 
 export async function getRequestStatus(referenceId: string): Promise<{ status: string; financialTransactionId?: string }> {

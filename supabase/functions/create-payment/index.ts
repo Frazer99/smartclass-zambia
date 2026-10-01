@@ -27,7 +27,8 @@ Deno.serve(async (req: Request) => {
     const { paymentMethod, phoneNumber, childId, subjectId } = await req.json() as { paymentMethod: PaymentMethod; phoneNumber?: string; childId?: string | null; subjectId?: string };
     if (paymentMethod !== "mobile_money" && paymentMethod !== "card") return json({ error: "Invalid payment method" }, 400);
     if (!subjectId) return json({ error: "Select a subject before paying" }, 400);
-    if (paymentMethod === "mobile_money" && !/^260\d{9}$/.test(phoneNumber || "")) {
+    const normalizedPhoneNumber = phoneNumber?.startsWith("0") ? `260${phoneNumber.slice(1)}` : phoneNumber;
+    if (paymentMethod === "mobile_money" && !/^260\d{9}$/.test(normalizedPhoneNumber || "")) {
       return json({ error: "Enter a valid MTN Zambia number in international format, for example 260971234567" }, 400);
     }
 
@@ -58,7 +59,7 @@ Deno.serve(async (req: Request) => {
         referenceId,
         amount,
         currency: "ZMW",
-        phoneNumber: phoneNumber!,
+        phoneNumber: normalizedPhoneNumber!,
         externalId: companyRef,
         payerMessage: `SmartClass Zambia ${subject.name} subscription`,
       });
@@ -90,6 +91,7 @@ Deno.serve(async (req: Request) => {
     return json({ paymentUrl: result.paymentUrl });
   } catch (error) {
     console.error("create-payment error:", error);
-    return json({ error: "Could not start payment" }, 500);
+    const message = error instanceof Error ? error.message : "Could not start payment";
+    return json({ error: message }, 500);
   }
 });

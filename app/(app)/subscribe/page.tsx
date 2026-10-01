@@ -56,16 +56,16 @@ export default function SubscribePage() {
         return;
       }
       const isAirtel = paymentMethod === 'airtel_money';
-      const airtelNumber = phoneNumber.startsWith('0') ? `260${phoneNumber.slice(1)}` : phoneNumber;
-      if (isAirtel && !/^260\d{9}$/.test(airtelNumber)) {
-        toast.error('Enter a valid Airtel Zambia number, for example 0971234567 or 260971234567.');
+      const mobileMoneyNumber = phoneNumber.startsWith('0') ? `260${phoneNumber.slice(1)}` : phoneNumber;
+      if ((isAirtel || paymentMethod === 'mobile_money') && !/^260\d{9}$/.test(mobileMoneyNumber)) {
+        toast.error(`Enter a valid ${isAirtel ? 'Airtel' : 'MTN'} Zambia number, for example 0971234567 or 260971234567.`);
         return;
       }
       const reference = `SCZ-${(targetChildId || session.user.id).slice(0, 8)}-${Date.now()}`;
       const response = await fetch(isAirtel ? '/api/payments/airtel/initiate' : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify(isAirtel ? { msisdn: airtelNumber, reference, childId: targetChildId, subjectId } : { paymentMethod, childId: targetChildId, subjectId, ...(paymentMethod === 'mobile_money' ? { phoneNumber } : {}) }),
+        body: JSON.stringify(isAirtel ? { msisdn: mobileMoneyNumber, reference, childId: targetChildId, subjectId } : { paymentMethod, childId: targetChildId, subjectId, ...(paymentMethod === 'mobile_money' ? { phoneNumber: mobileMoneyNumber } : {}) }),
       });
       const data = await response.json();
       if (!response.ok || (!data.paymentUrl && !data.paymentReference)) {
