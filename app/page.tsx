@@ -19,17 +19,26 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [featureIndex, setFeatureIndex] = useState(0);
+  const [featureDuration, setFeatureDuration] = useState(20000);
 
   useEffect(() => {
     if (!loading && user) router.push('/dashboard');
   }, [user, loading, router]);
 
   useEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 639px)');
+    const updateDuration = () => setFeatureDuration(mobileQuery.matches ? 15000 : 20000);
+    updateDuration();
+    mobileQuery.addEventListener('change', updateDuration);
+    return () => mobileQuery.removeEventListener('change', updateDuration);
+  }, []);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       setFeatureIndex((current) => (current + 1) % FEATURE_ITEMS.length);
-    }, 20000);
+    }, featureDuration);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [featureDuration]);
 
   return (
     <div className="relative min-h-screen bg-board text-chalk overflow-x-hidden">

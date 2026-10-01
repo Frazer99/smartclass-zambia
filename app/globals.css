@@ -298,6 +298,12 @@
   }
 }
 
+@media (max-width: 639px) {
+  .feature-card {
+    animation-duration: 15s;
+  }
+}
+
 /* Whiteboard handwriting animation */
 @keyframes writeIn {
   0% { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateX(-4px); }
