@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Subject, Topic, Lesson } from '@/lib/supabase-client';
-import { BookOpen, Calculator, FlaskConical, Atom, TestTube, ChevronRight, Plus, X, Upload, Loader as Loader2 } from 'lucide-react';
+import { BookOpen, Calculator, FlaskConical, Atom, TestTube, ChevronRight, ChevronDown, Plus, X, Upload, Loader as Loader2 } from 'lucide-react';
 
 const subjectIconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   Calculator, FlaskConical, Atom, TestTube,
@@ -17,6 +18,7 @@ export function CurriculumTab({
   topicForm: any; setTopicForm: (v: any) => void; onTopicSubmit: () => void;
   syllabusUpload: any; setSyllabusUpload: (v: any) => void; onSyllabusUpload: () => void; uploadingSyllabus: boolean;
 }) {
+  const [showTopics, setShowTopics] = useState(false);
   const filteredTopics = curriculumSubjectFilter
     ? topics.filter((t) => t.subject_id === curriculumSubjectFilter)
     : topics;
@@ -104,16 +106,17 @@ export function CurriculumTab({
 
       {/* Filter label */}
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-base font-semibold text-chalk">
-          Topics {curriculumSubjectFilter && `(${subjects.find((s) => s.id === curriculumSubjectFilter)?.name})`}
-        </h3>
+        <button type="button" onClick={() => setShowTopics((visible) => !visible)} aria-expanded={showTopics} className="flex items-center gap-2 text-left font-display text-base font-semibold text-chalk hover:text-gold transition-colors">
+          <span>Topics {curriculumSubjectFilter && `(${subjects.find((s) => s.id === curriculumSubjectFilter)?.name})`}</span>
+          <ChevronDown className={`h-4 w-4 transition-transform ${showTopics ? 'rotate-180' : ''}`} />
+        </button>
         {curriculumSubjectFilter && (
           <button onClick={() => setCurriculumSubjectFilter('')} className="text-xs text-muted-board hover:text-chalk">Clear filter</button>
         )}
       </div>
 
       {/* Topics list */}
-      <div className="space-y-2">
+      {showTopics && <div className="space-y-2 animate-slide-up">
         {filteredTopics.length === 0 ? (
           <div className="card-board p-8 text-center text-muted-board text-sm">No topics found.</div>
         ) : (
@@ -152,7 +155,7 @@ export function CurriculumTab({
             );
           })
         )}
-      </div>
+      </div>}
     </div>
   );
 }
