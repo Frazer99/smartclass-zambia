@@ -27,7 +27,7 @@ export default function Home() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setFeatureIndex((current) => (current + 1) % FEATURE_ITEMS.length);
-    }, 4800);
+    }, 10000);
     return () => window.clearInterval(timer);
   }, []);
 
