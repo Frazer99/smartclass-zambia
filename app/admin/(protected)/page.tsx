@@ -260,19 +260,20 @@ export default function AdminPage() {
   };
 
   const fetchOverview = async () => {
-    const [usersRes, topicsRes, lessonsRes, questionsRes, pastPaperQuestionsRes, materialsRes] = await Promise.all([
+    const [usersRes, topicsRes, uploadedTopicsRes, uploadedLessonsRes, uploadedPracticeQuestionsRes, uploadedPastPaperQuestionsRes, materialsRes] = await Promise.all([
       supabase.from('profiles').select('grade, role, full_name, created_at, id'),
       supabase.from('topics').select('id, subject_id, subject:subjects(name, color)'),
-      supabase.from('lessons').select('id', { count: 'exact', head: true }),
-      supabase.from('practice_questions').select('id', { count: 'exact', head: true }),
-      supabase.from('past_paper_questions').select('id', { count: 'exact', head: true }),
+      supabase.from('topics').select('id', { count: 'exact', head: true }).not('source_material_id', 'is', null),
+      supabase.from('lessons').select('id, topic:topics!inner(source_material_id)').not('topics.source_material_id', 'is', null),
+      supabase.from('practice_questions').select('id, topic:topics!inner(source_material_id)').not('topics.source_material_id', 'is', null),
+      supabase.from('past_paper_questions').select('id, past_paper:past_papers!inner(source_material_id)').not('past_papers.source_material_id', 'is', null),
       supabase.from('content_materials').select('id, status'),
     ]);
 
     setUserCount(usersRes.data?.length || 0);
-    setTopicCount(topicsRes.data?.length || 0);
-    setLessonCount(lessonsRes.count || 0);
-    setQuestionCount((questionsRes.count || 0) + (pastPaperQuestionsRes.count || 0));
+    setTopicCount(uploadedTopicsRes.count || 0);
+    setLessonCount(uploadedLessonsRes.data?.length || 0);
+    setQuestionCount((uploadedPracticeQuestionsRes.data?.length || 0) + (uploadedPastPaperQuestionsRes.data?.length || 0));
     setMaterialCount(materialsRes.data?.length || 0);
     setApprovedMaterialCount((materialsRes.data || []).filter((material: any) => ['approved', 'ingested'].includes(material.status)).length);
 
