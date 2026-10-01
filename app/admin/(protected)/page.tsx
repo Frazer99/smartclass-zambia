@@ -672,8 +672,8 @@ export default function AdminPage() {
     else { toast.error('Failed to update.'); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this material?')) return;
+  const handleDelete = async (id: string, confirmDelete = true) => {
+    if (confirmDelete && !confirm('Delete this material?')) return;
     const material = materials.find((item) => item.id === id) as any;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const { data: { session: authSession } } = await supabase.auth.getSession();
@@ -856,6 +856,10 @@ export default function AdminPage() {
     const { subject_id, grade, file } = syllabusUpload;
     if (!subject_id || !grade || !file) { toast.error('Subject, Form, and a PDF file are required.'); return; }
     if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { toast.error('Only PDF files can be uploaded.'); return; }
+    const previousSyllabi = materials.filter((material) =>
+      material.material_type === 'syllabus' && material.subject_id === subject_id && material.grade === Number(grade)
+    );
+    if (previousSyllabi.length > 0 && !confirm(`Replace the existing Form ${grade} syllabus for this subject? The new PDF will replace its document and generated topics.`)) return;
     setUploadingSyllabus(true);
     let materialId: string | null = null;
     let storagePath: string | null = null;
@@ -876,6 +880,7 @@ export default function AdminPage() {
       });
       if (ingestError) throw new Error(`Syllabus processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The syllabus PDF could not be processed.')}`);
       if (!ingestResult?.success || !ingestResult.extracted_characters) throw new Error('Syllabus was uploaded but could not be indexed for AI use.');
+      for (const previousSyllabus of previousSyllabi) await handleDelete(previousSyllabus.id, false);
       toast.success(`Syllabus processed. ${ingestResult.topics_created || 0} topics generated.`);
       setSyllabusUpload({ subject_id: '', grade: '', file: null, title: '' });
       fetchMaterials(); fetchCurriculum();
