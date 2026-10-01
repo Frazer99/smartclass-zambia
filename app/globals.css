@@ -245,8 +245,15 @@
   .animate-slide-up { animation: slideUp 0.3s ease-out; }
   .animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
   .feature-card {
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  .feature-card-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .feature-card-hidden {
     opacity: 0;
-    animation: slideUp 0.65s ease-out forwards;
+    transform: translateY(8px);
   }
   @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
   .form-input {
@@ -283,12 +290,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .feature-card,
+  .feature-card-visible,
   .animate-fade-in,
   .animate-slide-up,
   .animate-slide-in-right {
     animation: none;
     opacity: 1;
+    transform: none;
+  }
+  .feature-card-hidden {
+    opacity: 0;
     transform: none;
   }
 }

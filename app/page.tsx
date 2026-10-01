@@ -1,18 +1,41 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { ArrowRight, Mic, PenTool, TrendingUp, MapPin, BookOpen, Sparkles, Mail, Phone } from 'lucide-react';
 import { Wordmark, LogoMark } from '@/components/brand/Logo';
 
+const FEATURE_ITEMS = [
+  { icon: Mic, title: 'Voice Interactive', desc: 'Your AI teacher speaks and listens. Ask questions out loud and get spoken answers.' },
+  { icon: PenTool, title: 'Smart Board', desc: 'Watch equations, diagrams, and step-by-step solutions appear on a digital smart board.' },
+  { icon: TrendingUp, title: 'Progress Tracking', desc: 'See your mastery grow topic by topic. Get recommendations on what to study next.' },
+  { icon: MapPin, title: 'Zambian Context', desc: 'Learn with examples you know — kwacha, mealie meal, local bus routes, and more.' },
+  { icon: BookOpen, title: 'Zambian Curriculum Aligned', desc: 'Every lesson maps to the Zambian Curriculum syllabus for your subject and form.' },
+  { icon: Sparkles, title: 'SmartTeach Engine', desc: 'An AI engine that teaches like a real teacher — not just a chatbot that answers.' },
+] as const;
+
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [featureIndex, setFeatureIndex] = useState(0);
+  const [featureVisible, setFeatureVisible] = useState(true);
 
   useEffect(() => {
     if (!loading && user) router.push('/dashboard');
   }, [user, loading, router]);
+
+  useEffect(() => {
+    const hideTimer = window.setTimeout(() => setFeatureVisible(false), 2600);
+    const replaceTimer = window.setTimeout(() => {
+      setFeatureIndex((current) => (current + 1) % FEATURE_ITEMS.length);
+      setFeatureVisible(true);
+    }, 3200);
+    return () => {
+      window.clearTimeout(hideTimer);
+      window.clearTimeout(replaceTimer);
+    };
+  }, [featureIndex]);
 
   return (
     <div className="relative min-h-screen bg-board text-chalk overflow-x-hidden">
@@ -67,23 +90,26 @@ export default function Home() {
         </section>
 
         {/* Features */}
-        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { icon: Mic, title: 'Voice Interactive', desc: 'Your AI teacher speaks and listens. Ask questions out loud and get spoken answers.' },
-            { icon: PenTool, title: 'Smart Board', desc: 'Watch equations, diagrams, and step-by-step solutions appear on a digital smart board.' },
-            { icon: TrendingUp, title: 'Progress Tracking', desc: 'See your mastery grow topic by topic. Get recommendations on what to study next.' },
-            { icon: MapPin, title: 'Zambian Context', desc: 'Learn with examples you know — kwacha, mealie meal, local bus routes, and more.' },
-            { icon: BookOpen, title: 'Zambian Curriculum Aligned', desc: 'Every lesson maps to the Zambian Curriculum syllabus for your subject and form.' },
-            { icon: Sparkles, title: 'SmartTeach Engine', desc: 'An AI engine that teaches like a real teacher — not just a chatbot that answers.' },
-          ].map(({ icon: Icon, title, desc }, index) => (
-            <div key={title} className="card-board feature-card p-4 sm:p-5" style={{ animationDelay: `${index * 160}ms` }}>
-              <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center text-gold mb-3">
-                <Icon className="h-5 w-5" />
-              </div>
-              <h3 className="font-display font-semibold text-chalk mb-1">{title}</h3>
-              <p className="text-sm text-muted-board">{desc}</p>
-            </div>
-          ))}
+        <section className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+          <div className="min-h-[156px] flex items-center justify-center">
+            {(() => {
+              const feature = FEATURE_ITEMS[featureIndex];
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.title}
+                  className={`card-board w-full feature-card p-4 sm:p-5 ${featureVisible ? 'feature-card-visible' : 'feature-card-hidden'}`}
+                  aria-live="polite"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center text-gold mb-3">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-display font-semibold text-chalk mb-1">{feature.title}</h3>
+                  <p className="text-sm text-muted-board">{feature.desc}</p>
+                </div>
+              );
+            })()}
+          </div>
         </section>
 
         {/* Forms */}
