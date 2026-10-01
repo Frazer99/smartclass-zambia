@@ -102,19 +102,24 @@ export default function SubscribePage() {
         <p className="text-sm text-muted-board">per month</p>
       </div>
       <div className="space-y-3">
+        <div className="space-y-2">
+          <label htmlFor="mobile-money-number" className="block text-xs uppercase tracking-widest text-muted-board font-semibold">MTN or Airtel mobile number</label>
+          <input
+            id="mobile-money-number"
+            value={phoneNumber}
+            onChange={(event) => setPhoneNumber(event.target.value.replace(/\D/g, '').slice(0, 12))}
+            inputMode="numeric"
+            aria-label="MTN or Airtel Zambia mobile money number"
+            placeholder="260971234567"
+            className="w-full rounded-lg border border-white/15 bg-transparent px-4 py-3 text-sm text-chalk outline-none focus:border-gold"
+          />
+          <p className="text-xs text-muted-board">Use either 0971234567 or 260971234567.</p>
+        </div>
         <button onClick={() => void startPayment('mobile_money')} disabled={submitting !== null} className="w-full flex items-center gap-3 border border-white/15 hover:border-gold rounded-lg px-4 py-4 transition-colors disabled:opacity-50">
           <Smartphone className="h-5 w-5 text-gold" />
           <span className="text-left flex-1"><span className="block text-sm font-semibold text-chalk">MTN Mobile Money</span><span className="block text-xs text-muted-board">Approve the request on your MTN phone</span></span>
           {submitting === 'mobile_money' && <Loader2 className="h-4 w-4 animate-spin text-gold" />}
         </button>
-        <input
-          value={phoneNumber}
-          onChange={(event) => setPhoneNumber(event.target.value.replace(/\D/g, '').slice(0, 12))}
-          inputMode="numeric"
-          aria-label="Mobile money Zambia phone number"
-          placeholder="260971234567"
-          className="w-full rounded-lg border border-white/15 bg-transparent px-4 py-3 text-sm text-chalk outline-none focus:border-gold"
-        />
         <button onClick={() => void startPayment('airtel_money')} disabled={submitting !== null} className="w-full flex items-center gap-3 border border-white/15 hover:border-gold rounded-lg px-4 py-4 transition-colors disabled:opacity-50">
           <Smartphone className="h-5 w-5 text-gold" />
           <span className="text-left flex-1"><span className="block text-sm font-semibold text-chalk">Airtel Money</span><span className="block text-xs text-muted-board">Approve the request on your Airtel phone</span></span>
