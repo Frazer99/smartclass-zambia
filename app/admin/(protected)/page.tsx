@@ -56,7 +56,7 @@ import { ChartBar as BarChart3, TrendingUp, FileText, BookOpen, CircleHelp as He
 export default function AdminPage() {
   const { profile } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab | null>('overview');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -1018,21 +1018,27 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="card-board p-3 flex items-center gap-3">
-        <label htmlFor="admin-section" className="text-xs uppercase tracking-widest text-gold font-semibold shrink-0">
-          Section
-        </label>
-        <select
-          id="admin-section"
-          value={activeTab}
-          onChange={(event) => setActiveTab(event.target.value as Tab)}
-          className="flex-1 max-w-sm rounded-lg border border-gold/40 bg-board-deep px-3 py-2.5 text-sm text-chalk focus:outline-none focus:ring-1 focus:ring-gold"
-        >
-          <optgroup label="Materials">
-            {TABS.filter((tab) => tab.group === 'Materials').map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
-          </optgroup>
-          {TABS.filter((tab) => !tab.group).map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
-        </select>
+      <div className="card-board p-3 space-y-3">
+        <span className="text-xs uppercase tracking-widest text-gold font-semibold">Sections</span>
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Admin sections">
+          {TABS.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-expanded={selected}
+                onClick={() => setActiveTab(selected ? null : tab.id)}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${selected ? 'border-gold bg-gold/10 text-gold' : 'border-white/10 text-muted-board hover:border-gold/50 hover:text-chalk'}`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {activeTab === 'overview' && (
