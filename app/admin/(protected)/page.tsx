@@ -686,7 +686,7 @@ export default function AdminPage() {
         const { error: storageError } = await supabase.storage.from('content-materials').remove([material.storage_path]);
         if (storageError) toast.error(`Material deleted, but its PDF could not be removed: ${storageError.message}`);
       }
-      toast.success('Deleted.'); fetchMaterials();
+      toast.success('Deleted.'); fetchMaterials(); fetchCurriculum();
     }
     else { toast.error('Failed to delete.'); }
   };
@@ -1143,12 +1143,13 @@ export default function AdminPage() {
 
       {activeTab === 'curriculum' && (
         <CurriculumTab
-          subjects={subjects} topics={topics} lessons={lessons}
+          subjects={subjects} topics={topics} lessons={lessons} materials={materials}
           curriculumSubjectFilter={curriculumSubjectFilter} setCurriculumSubjectFilter={setCurriculumSubjectFilter}
           showTopicForm={showTopicForm} setShowTopicForm={setShowTopicForm}
           topicForm={topicForm} setTopicForm={setTopicForm} onTopicSubmit={handleTopicSubmit}
           syllabusUpload={syllabusUpload} setSyllabusUpload={setSyllabusUpload}
           onSyllabusUpload={handleSyllabusUpload} uploadingSyllabus={uploadingSyllabus}
+          onDeleteSyllabus={handleDelete}
         />
       )}
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Subject, Topic, Lesson } from '@/lib/supabase-client';
-import { BookOpen, Calculator, FlaskConical, Atom, TestTube, ChevronRight, ChevronDown, Plus, X, Upload, Loader as Loader2 } from 'lucide-react';
+import { supabase, Subject, Topic, Lesson, ContentMaterial } from '@/lib/supabase-client';
+import { BookOpen, Calculator, FlaskConical, Atom, TestTube, ChevronRight, ChevronDown, Plus, X, Upload, Loader as Loader2, ExternalLink, Trash2 } from 'lucide-react';
 
 const subjectIconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   Calculator, FlaskConical, Atom, TestTube,
@@ -8,17 +8,21 @@ const subjectIconMap: Record<string, React.ComponentType<{ className?: string; s
 
 export function CurriculumTab({
   subjects, topics, lessons,
+  materials,
   curriculumSubjectFilter, setCurriculumSubjectFilter,
   showTopicForm, setShowTopicForm, topicForm, setTopicForm, onTopicSubmit,
-  syllabusUpload, setSyllabusUpload, onSyllabusUpload, uploadingSyllabus,
+  syllabusUpload, setSyllabusUpload, onSyllabusUpload, uploadingSyllabus, onDeleteSyllabus,
 }: {
   subjects: Subject[]; topics: Topic[]; lessons: Lesson[];
+  materials: ContentMaterial[];
   curriculumSubjectFilter: string; setCurriculumSubjectFilter: (v: string) => void;
   showTopicForm: boolean; setShowTopicForm: (v: boolean) => void;
   topicForm: any; setTopicForm: (v: any) => void; onTopicSubmit: () => void;
   syllabusUpload: any; setSyllabusUpload: (v: any) => void; onSyllabusUpload: () => void; uploadingSyllabus: boolean;
+  onDeleteSyllabus: (id: string) => void;
 }) {
   const [showTopics, setShowTopics] = useState(false);
+  const syllabusMaterials = materials.filter((material) => material.material_type === 'syllabus' || material.material_type === 'curriculum');
   const filteredTopics = curriculumSubjectFilter
     ? topics.filter((t) => t.subject_id === curriculumSubjectFilter)
     : topics;
@@ -60,6 +64,34 @@ export function CurriculumTab({
           {uploadingSyllabus ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {uploadingSyllabus ? 'Processing syllabus...' : 'Upload and generate topics'}
         </button>
+      </div>
+
+      <div className="card-board p-5 space-y-3">
+        <div>
+          <h3 className="font-display text-lg font-semibold text-chalk">Uploaded syllabi</h3>
+          <p className="text-xs text-muted-board">View the original PDF or remove it with all generated curriculum content.</p>
+        </div>
+        {syllabusMaterials.length === 0 ? (
+          <p className="text-sm text-muted-board">No uploaded syllabi yet.</p>
+        ) : syllabusMaterials.map((material) => (
+          <div key={material.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-chalk">{material.title}</p>
+              <p className="text-xs text-muted-board">{material.subject?.name || 'All subjects'}{material.grade ? ` · Form ${material.grade}` : ''} · {material.status}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {material.storage_path && <button type="button" onClick={async () => {
+                const { data } = await supabase.storage.from('content-materials').createSignedUrl(material.storage_path!, 300);
+                if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+              }} className="inline-flex items-center gap-1.5 border border-white/15 rounded-lg px-3 py-2 text-xs text-chalk hover:border-gold transition-colors">
+                <ExternalLink className="h-3.5 w-3.5" /> View PDF
+              </button>}
+              <button type="button" onClick={() => onDeleteSyllabus(material.id)} className="inline-flex items-center gap-1.5 border border-rust/40 rounded-lg px-3 py-2 text-xs text-rust hover:bg-rust/10 transition-colors">
+                <Trash2 className="h-3.5 w-3.5" /> Delete syllabus
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {showTopicForm && (
