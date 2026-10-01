@@ -25,15 +25,15 @@ export default function Home() {
       <div className="relative z-10">
         {/* Nav */}
         <nav className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 border-b border-white/10">
-          <Wordmark size="sm" />
+          <Wordmark size="nav" />
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/login')}
-              className="text-sm font-medium text-muted-board hover:text-chalk transition-colors"
+              className="text-xs sm:text-sm font-medium text-muted-board hover:text-chalk transition-colors"
             >
               Log In
             </button>
-            <button onClick={() => router.push('/register')} className="btn-gold text-sm px-4 py-2">
+            <button onClick={() => router.push('/register')} className="btn-gold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2">
               Get Started <ArrowRight className="inline h-4 w-4 ml-1" />
             </button>
           </div>
