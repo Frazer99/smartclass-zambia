@@ -910,6 +910,7 @@ export default function AdminPage() {
           subject_id: material.subject_id,
           grade: material.grade,
           material_type: material.material_type,
+          force_ocr: true,
         },
       });
       if (error) throw new Error(`Syllabus transcription failed: ${await edgeFunctionErrorMessage(error, 'The syllabus could not be transcribed.')}`);

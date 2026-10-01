@@ -18,6 +18,7 @@ type IngestRequest = {
   extracted_text?: string | null;
   answer_extracted_text?: string | null;
   answer_storage_path?: string | null;
+  force_ocr?: boolean;
   past_paper_id?: string | null;
   subject_id?: string | null;
   grade?: number | null;
@@ -59,6 +60,16 @@ function hasUsableExtractedText(text: string): boolean {
   const normalized = text.replace(/\s+/g, " ").trim();
   const letters = (normalized.match(/[A-Za-z]/g) || []).length;
   return normalized.length >= 80 && letters >= 20;
+}
+
+function hasEncodedPdfText(text: string): boolean {
+  const shifted = text.replace(/[A-Za-z]/g, (character) => {
+    const base = character >= "a" && character <= "z" ? 97 : 65;
+    return String.fromCharCode(((character.charCodeAt(0) - base - 3 + 26) % 26) + base);
+  });
+  const decodedMarkers = [" the ", " and ", " but ", " also ", " mathematical ", " nurturing "]
+    .filter((marker) => shifted.toLowerCase().includes(marker)).length;
+  return /\b0[A-Za-z]+/.test(text) || decodedMarkers >= 2;
 }
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -288,7 +299,7 @@ Deno.serve(async (req: Request) => {
 
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
     let extractedText = body.extracted_text?.trim() || await extractSelectableText(pdfBytes);
-    if (!hasUsableExtractedText(extractedText)) {
+    if (body.force_ocr || !hasUsableExtractedText(extractedText) || hasEncodedPdfText(extractedText)) {
       extractedText = await extractScannedPdfText(pdfBytes);
     }
 
