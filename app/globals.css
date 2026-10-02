@@ -155,6 +155,127 @@
   position: relative;
 }
 
+/* Immersive lesson room: a warm, physical classroom stage for the live teacher. */
+.classroom-scene {
+  position: relative;
+  min-height: 34rem;
+  overflow: hidden;
+  isolation: isolate;
+  border: 2px solid rgba(232, 185, 75, 0.65);
+  border-radius: 22px 12px 22px 12px;
+  background:
+    linear-gradient(180deg, rgba(247, 230, 190, 0.18), transparent 44%),
+    linear-gradient(160deg, hsl(31 32% 38%) 0%, hsl(30 26% 26%) 52%, hsl(26 28% 17%) 100%);
+  box-shadow: inset 0 -5rem 0 rgba(18, 14, 10, 0.24), 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+.classroom-scene::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 34%;
+  z-index: -1;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 46px);
+  opacity: 0.7;
+}
+.classroom-scene::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 38%;
+  z-index: -1;
+  background: repeating-linear-gradient(90deg, rgba(118, 68, 35, 0.7) 0 56px, rgba(88, 48, 26, 0.7) 56px 60px);
+  transform: perspective(300px) rotateX(20deg) scale(1.12);
+  transform-origin: bottom;
+}
+.classroom-window {
+  position: absolute;
+  top: 2.3rem;
+  width: 4.8rem;
+  height: 8.2rem;
+  border: 0.55rem solid rgba(49, 37, 28, 0.75);
+  background: linear-gradient(135deg, rgba(150, 211, 223, 0.82), rgba(248, 210, 135, 0.45));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.2), 0 0 2rem rgba(251, 214, 139, 0.18);
+}
+.classroom-window::after {
+  content: '';
+  position: absolute;
+  inset: 0 47%;
+  background: rgba(49, 37, 28, 0.62);
+}
+.classroom-window-one { left: 2rem; }
+.classroom-window-two { right: 2rem; }
+.classroom-clock {
+  position: absolute;
+  top: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 246, 218, 0.75);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+}
+.classroom-board {
+  position: absolute;
+  top: 4rem;
+  left: 50%;
+  width: min(56%, 38rem);
+  min-height: 15rem;
+  transform: translateX(-50%);
+  padding: 0.8rem 1rem;
+  border: 0.7rem solid #5b3825;
+  border-radius: 0.35rem;
+  background: #193a31;
+  box-shadow: 0 0 0 2px rgba(221, 166, 76, 0.38), inset 0 0 2rem rgba(0, 0, 0, 0.35), 0 0.7rem 1.1rem rgba(0, 0, 0, 0.35);
+}
+.classroom-board-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  color: rgba(255, 247, 219, 0.7);
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.classroom-board-status { color: hsl(41 76% 60%); }
+.classroom-board-content { padding-top: 0.9rem; color: #fff6d5; }
+.classroom-board-heading { color: hsl(41 76% 60%); font-family: 'Space Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.classroom-board-line { margin-top: 0.55rem; font-family: 'Caveat', cursive; font-size: clamp(1.35rem, 3vw, 2rem); line-height: 1.05; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); }
+.classroom-board-empty { color: rgba(255, 247, 219, 0.5); font-family: 'Caveat', cursive; font-size: 1.5rem; }
+.classroom-teacher { position: absolute; left: 13%; bottom: 6.2rem; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+.classroom-teacher-shadow { width: 7rem; height: 1.2rem; margin-top: -0.4rem; border-radius: 50%; background: rgba(0,0,0,0.36); filter: blur(4px); }
+.classroom-teacher-label { display: flex; flex-direction: column; align-items: center; margin-top: 0.5rem; color: rgba(255, 247, 219, 0.92); text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
+.classroom-teacher-label strong { font-size: 0.72rem; }
+.classroom-teacher-label span { color: rgba(255, 247, 219, 0.63); font-size: 0.58rem; }
+.classroom-desks { position: absolute; inset: auto 0 0; height: 44%; z-index: 1; pointer-events: none; }
+.classroom-desk { position: absolute; bottom: 1.1rem; width: 7rem; height: 2.5rem; border-radius: 0.4rem 0.4rem 0.15rem 0.15rem; background: linear-gradient(180deg, #8f5833, #54301f); box-shadow: 0 0.9rem 0 rgba(40, 22, 14, 0.75); }
+.classroom-desk-one { left: 42%; transform: scale(1.1); }
+.classroom-desk-two { left: 67%; bottom: 0.7rem; transform: scale(0.8); }
+.classroom-desk-three { left: 82%; bottom: 2.2rem; transform: scale(0.62); }
+.classroom-student { position: absolute; bottom: 4rem; width: 3.2rem; height: 4.7rem; border-radius: 48% 48% 22% 22%; background: linear-gradient(180deg, #3d2520 0 27%, #a85f45 27% 48%, #285c5c 48%); opacity: 0.95; }
+.classroom-student::after { content: ''; position: absolute; top: -0.55rem; left: 0.65rem; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: #805236; }
+.classroom-student-one { left: 39%; transform: scale(0.86); }
+.classroom-student-two { left: 54%; bottom: 5.8rem; transform: scale(0.72); }
+.classroom-student-three { left: 69%; transform: scale(0.9); }
+.classroom-student-four { left: 84%; bottom: 5rem; transform: scale(0.64); }
+.classroom-overlay { position: absolute; top: 1rem; right: 1rem; z-index: 3; display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.6rem; border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; background: rgba(10, 19, 16, 0.52); color: rgba(255, 247, 219, 0.78); font-size: 0.65rem; backdrop-filter: blur(8px); }
+.classroom-live-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #d56b4d; box-shadow: 0 0 0.5rem #d56b4d; }
+.classroom-mode-toggle { display: inline-flex; gap: 0.15rem; padding: 0.2rem; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.65rem; background: rgba(255,255,255,0.05); }
+.classroom-mode-toggle button { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.55rem; border: 0; border-radius: 0.4rem; background: transparent; color: hsl(158 15% 60%); font-size: 0.68rem; font-weight: 600; cursor: pointer; }
+.classroom-mode-toggle button:hover { color: hsl(46 27% 94%); }
+.classroom-mode-toggle button.active { background: hsl(41 76% 60%); color: hsl(148 37% 10%); }
+
+@media (max-width: 720px) {
+  .classroom-scene { min-height: 29rem; }
+  .classroom-window { display: none; }
+  .classroom-board { top: 3.5rem; width: 72%; min-height: 12rem; }
+  .classroom-teacher { left: 7%; bottom: 5.6rem; transform: scale(0.82); transform-origin: bottom left; }
+  .classroom-student-four, .classroom-desk-three { display: none; }
+  .classroom-mode-toggle span { display: none; }
+  .classroom-mode-toggle button { padding: 0.45rem; }
+}
+
 .note-pin {
   position: absolute;
   top: -7px;

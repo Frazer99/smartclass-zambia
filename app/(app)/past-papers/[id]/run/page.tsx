@@ -4,14 +4,15 @@ import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase, PastPaper, PastPaperQuestion, Subject } from '@/lib/supabase-client';
 import { useAuth } from '@/components/auth-provider';
-import { TeacherAvatarState } from '@/components/teacher/TeacherAvatar';
-import { LiveTeacherAvatar, LiveTeacherAvatarHandle } from '@/components/teacher/LiveTeacherAvatar';
-import { TeachingModeToggle } from '@/components/teacher/TeachingModeToggle';
+import { TeacherAvatar, TeacherAvatarState } from '@/components/teacher/TeacherAvatar';
+import { ClassroomScene } from '@/components/lesson/classroom-scene';
 import { TeachingMode, loadTeachingMode, saveTeachingMode } from '@/lib/teachingMode';
 import { readTutorResponse } from '@/lib/ai-teacher-stream';
-import { ArrowLeft, ChevronRight, CircleCheck as CheckCircle2, CircleX as XCircle, Loader as Loader2 } from 'lucide-react';
+import { DEFAULT_TEACHER_VOICE, selectBrowserVoice, TeacherVoiceProfile, voiceProfileForPersona } from '@/lib/teacherVoice';
+import { ArrowLeft, BookOpen, ChevronRight, CircleCheck as CheckCircle2, CircleX as XCircle, LayoutPanelTop, Loader as Loader2, MessageCircle } from 'lucide-react';
 
 type BoardItem = { type: 'heading' | 'body' | 'formula' | 'step' | 'example'; content: string };
+type ClassroomMode = 'classroom' | 'board' | 'text';
 
 function parseNumericAnswer(value: string): number | null {
   const normalized = value.trim().replace(/,/g, '');
@@ -65,16 +66,16 @@ function PastPaperRunInner() {
   const [textAnswer, setTextAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [mode, setMode] = useState<TeachingMode>('video');
+  const [mode, setMode] = useState<TeachingMode>('voice');
+  const [classroomMode, setClassroomMode] = useState<ClassroomMode>('classroom');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [aiSolution, setAiSolution] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [writing, setWriting] = useState(false);
   const [teacherName, setTeacherName] = useState('Mr. Chomba');
-  const [liveAvatarConnected, setLiveAvatarConnected] = useState(false);
+  const [voiceProfile, setVoiceProfile] = useState<TeacherVoiceProfile>(DEFAULT_TEACHER_VOICE);
   const [awaitingUnderstandingCheck, setAwaitingUnderstandingCheck] = useState(false);
   const [boardItems, setBoardItems] = useState<BoardItem[]>([]);
-  const liveAvatarRef = useRef<LiveTeacherAvatarHandle>(null);
 
   const addToBoard = useCallback((item: BoardItem) => {
     setWriting(true);
@@ -100,9 +101,12 @@ function PastPaperRunInner() {
   }, [addToBoard]);
 
   const isSingleMode = singleQuestionNumber !== null;
+  const question = questions[index];
 
   useEffect(() => {
-    setMode(loadTeachingMode());
+    const savedMode = loadTeachingMode();
+    setMode(savedMode);
+    setClassroomMode(savedMode === 'text' ? 'text' : 'classroom');
   }, []);
 
   useEffect(() => {
@@ -116,12 +120,21 @@ function PastPaperRunInner() {
     (async () => {
       const { data } = await supabase
         .from('teacher_personas')
-        .select('name')
+        .select('name, gender, voice_locale, voice_accent, voice_gender, voice_tone, voice_rate')
         .eq('subject_id', paper.subject_id)
         .lte('grade_min', profile.grade)
         .gte('grade_max', profile.grade)
         .maybeSingle();
-      if (data?.name) setTeacherName(data.name);
+      if (data?.name) {
+        setTeacherName(data.name);
+        setVoiceProfile(voiceProfileForPersona(data.name, data.voice_gender || data.gender, {
+          locale: data.voice_locale,
+          accent: data.voice_accent,
+          gender: data.voice_gender,
+          tone: data.voice_tone,
+          rate: data.voice_rate ? Number(data.voice_rate) : undefined,
+        }));
+      }
     })();
   }, [paper?.subject_id, profile]);
 
@@ -143,6 +156,14 @@ function PastPaperRunInner() {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [chatMessages]);
+
+  useEffect(() => {
+    if (!question) return;
+    setBoardItems([
+      { type: 'heading', content: `Question ${question.question_number}` },
+      { type: 'body', content: question.question_text },
+    ]);
+  }, [question?.id]);
 
   const saveChat = (msgs: ChatMessage[]) => {
     setChatMessages(msgs);
@@ -236,9 +257,9 @@ function PastPaperRunInner() {
           sessionId: paperId,
           message: `Past paper: ${paper.title}\nQuestion ${question?.question_number}: ${question?.question_text || 'the current paper'}\nAdministrator answer: ${question?.answer_key || 'No answer was uploaded for this question.'}\nAdministrator working: ${question?.explanation || 'No worked explanation was uploaded.'}\n\nPupil request: ${toSend}`,
           topicName: paper?.title,
-          topicId: paper?.subject_id,
+          topicId: question?.topic_id || null,
           subjectId: paper?.subject_id,
-          grade: profile?.grade,
+          grade: paper?.grade ? (paper.grade > 6 ? paper.grade - 7 : paper.grade) : profile?.grade,
           subjectName: paper?.subject?.name,
           lessonContent: null,
           history: chatMessages.slice(-10).map((m) => ({ role: m.role, content: m.content })),
@@ -294,37 +315,34 @@ function PastPaperRunInner() {
     setLoading(false);
   }
 
-  const question = questions[index];
-
   const speak = useCallback((text: string) => {
-    if (mode !== 'video') return;
-    if (liveAvatarConnected) {
-      liveAvatarRef.current?.speak(text);
-      return;
-    }
+    if (mode !== 'voice') return;
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
+    u.rate = voiceProfile.rate;
+    const browserVoice = selectBrowserVoice(window.speechSynthesis.getVoices(), voiceProfile);
+    if (browserVoice) u.voice = browserVoice;
     u.onstart = () => setIsSpeaking(true);
     u.onend = () => setIsSpeaking(false);
     u.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(u);
-  }, [liveAvatarConnected, mode]);
+  }, [mode, voiceProfile]);
 
   const stopTeacherSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    liveAvatarRef.current?.interrupt?.();
     setIsSpeaking(false);
   }, []);
 
-  function handleModeChange(next: TeachingMode) {
+  function handleClassroomModeChange(next: ClassroomMode) {
     if (next === 'text' && window.speechSynthesis) window.speechSynthesis.cancel();
     setIsSpeaking(false);
-    setMode(next);
-    saveTeachingMode(next);
+    setClassroomMode(next);
+    const nextTeachingMode = next === 'text' ? 'text' : 'voice';
+    setMode(nextTeachingMode);
+    saveTeachingMode(nextTeachingMode);
   }
 
   async function handleSubmit() {
@@ -405,9 +423,9 @@ function PastPaperRunInner() {
           sessionId: paperId,
           message: `Question: ${question.question_text}\n${answerContext}\nAdministrator answer: ${question.answer_key || 'No answer was uploaded for this question.'}\nAdministrator working: ${question.explanation || 'No worked explanation was uploaded.'}\nExplain the reasoning clearly. If the submitted answer is incorrect or incomplete, identify the specific mistake and show how to repair it.`,
           topicId: question.topic_id,
-          topicName: paper?.title,
+          topicName: question?.topic_id ? question.question_text : paper?.title,
           subjectId: paper?.subject_id,
-          grade: profile?.grade,
+          grade: paper?.grade ? (paper.grade > 6 ? paper.grade - 7 : paper.grade) : profile?.grade,
           subjectName: paper?.subject?.name,
           lessonContent: null,
           history: [],
@@ -461,14 +479,36 @@ function PastPaperRunInner() {
         >
           <ArrowLeft className="h-4 w-4" /> {paper.title}
         </button>
-        <TeachingModeToggle mode={mode} onChange={handleModeChange} />
+        <div className="classroom-mode-toggle" aria-label="Question view">
+          <button onClick={() => handleClassroomModeChange('classroom')} className={classroomMode === 'classroom' ? 'active' : ''} title="Enter classroom mode">
+            <BookOpen className="h-3.5 w-3.5" /> <span>Classroom</span>
+          </button>
+          <button onClick={() => handleClassroomModeChange('board')} className={classroomMode === 'board' ? 'active' : ''} title="Focus on the smart board">
+            <LayoutPanelTop className="h-3.5 w-3.5" /> <span>Smart board</span>
+          </button>
+          <button onClick={() => handleClassroomModeChange('text')} className={classroomMode === 'text' ? 'active' : ''} title="Use the text tutor">
+            <MessageCircle className="h-3.5 w-3.5" /> <span>Text tutor</span>
+          </button>
+        </div>
       </div>
 
       <h1 className="font-display text-xl font-semibold text-chalk">
         {isSingleMode ? `Question ${question.question_number}` : `${paper.title} — Question ${index + 1} of ${questions.length}`}
       </h1>
 
-      <div className="card-board overflow-hidden">
+      {classroomMode === 'classroom' && (
+        <ClassroomScene
+          teacherName={teacherName}
+          grade={profile?.grade || paper.grade}
+          avatarState={avatarState}
+          writing={writing}
+          boardItems={boardItems}
+          lessonTitle={`${paper.subject?.name || 'Past paper'} / Question ${question.question_number}`}
+          status={writing ? 'Writing the working...' : isSpeaking ? 'Explaining' : submitted ? (isCorrect ? 'Correct answer' : 'Let us repair this') : 'Ready to solve together'}
+        />
+      )}
+
+      <div className={`card-board overflow-hidden ${classroomMode === 'classroom' ? 'hidden' : ''}`}>
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
           <span className="text-sm font-semibold text-chalk">Teacher&apos;s whiteboard</span>
           {writing && <span className="ml-auto text-xs text-gold">Writing...</span>}
@@ -484,9 +524,9 @@ function PastPaperRunInner() {
         </div>
       </div>
 
-      {mode === 'video' && (
+      {mode === 'voice' && classroomMode !== 'classroom' && (
           <div className="card-board px-4 py-3 flex items-center gap-3">
-            <LiveTeacherAvatar ref={liveAvatarRef} subjectId={paper?.subject_id} grade={profile?.grade} teacherName={teacherName} enabled={mode === 'video'} onSpeakingChange={setIsSpeaking} onConnectionChange={setLiveAvatarConnected} size="md" />
+            <TeacherAvatar state={avatarState} writing={writing} size="md" name={teacherName} />
           <div>
             <p className="text-sm font-semibold text-chalk">{teacherName}</p>
             <p className="text-xs text-muted-board">
@@ -601,14 +641,14 @@ function PastPaperRunInner() {
               {isCorrect ? 'Correct!' : `Not quite. The correct answer is ${question.answer_key}.`}
             </div>
             {question.explanation && (
-              <p className={mode === 'video' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>
+              <p className={mode === 'voice' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>
                 {question.explanation}
               </p>
             )}
             {aiSolution && (
               <div className="pt-2">
                 <h4 className="text-sm font-semibold text-chalk mb-1">AI teacher explanation</h4>
-                <p className={mode === 'video' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>{aiSolution}</p>
+                <p className={mode === 'voice' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>{aiSolution}</p>
               </div>
             )}
             <button

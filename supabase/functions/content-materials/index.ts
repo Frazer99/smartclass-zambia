@@ -75,13 +75,23 @@ Deno.serve(async (req: Request) => {
     // POST / — create a new content material
     if (method === "POST" && (path === "" || path === "/")) {
       const body = await req.json();
-      const { title, source, material_type, subject_id, grade, source_reference, content_summary } = body;
+      const { title, source, material_type, subject_id, topic_id, grade, source_reference, content_summary } = body;
 
       if (!title || !source) {
         return new Response(JSON.stringify({ error: "Title and source are required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      if (material_type !== "curriculum" && material_type !== "syllabus") {
+        if (!topic_id) {
+          return new Response(JSON.stringify({ error: "A topic is required for uploaded study materials" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const { data: topic } = await supabase.from("topics").select("subject_id, grade").eq("id", topic_id).maybeSingle();
+        if (!topic || topic.subject_id !== subject_id || Number(topic.grade) !== Number(grade)) {
+          return new Response(JSON.stringify({ error: "The video topic must belong to the selected subject and Form" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
 
       const normalizedTitle = String(title).trim();
@@ -114,6 +124,7 @@ Deno.serve(async (req: Request) => {
           source: normalizedSource,
           material_type: material_type || "supplementary",
           subject_id: subject_id || null,
+          topic_id: topic_id || null,
           grade: grade || null,
           source_reference: source_reference || null,
           content_summary: content_summary || null,
@@ -151,11 +162,25 @@ Deno.serve(async (req: Request) => {
 
       const body = await req.json();
       const updates: Record<string, any> = {};
-      const allowedFields = ["title", "source", "material_type", "subject_id", "grade", "source_reference", "content_summary", "status"];
+      const allowedFields = ["title", "source", "material_type", "subject_id", "topic_id", "grade", "source_reference", "content_summary", "status"];
       for (const field of allowedFields) {
         if (body[field] !== undefined) updates[field] = body[field];
       }
       if (updates.status === "pending") updates.status = "approved";
+
+      if (updates.material_type === "video" || updates.topic_id !== undefined || updates.subject_id !== undefined || updates.grade !== undefined) {
+        const { data: existing } = await supabase.from("content_materials").select("material_type, topic_id, subject_id, grade").eq("id", id).maybeSingle();
+        const materialType = updates.material_type ?? existing?.material_type;
+        const topicId = updates.topic_id ?? existing?.topic_id;
+        const subjectId = updates.subject_id ?? existing?.subject_id;
+        const materialGrade = updates.grade ?? existing?.grade;
+        if (materialType !== "curriculum" && materialType !== "syllabus") {
+          const { data: topic } = await supabase.from("topics").select("subject_id, grade").eq("id", topicId).maybeSingle();
+          if (!topic || topic.subject_id !== subjectId || Number(topic.grade) !== Number(materialGrade)) {
+            return new Response(JSON.stringify({ error: "The video topic must belong to the selected subject and Form" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+        }
+      }
 
       const { data, error } = await supabase
         .from("content_materials")

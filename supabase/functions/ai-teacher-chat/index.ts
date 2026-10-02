@@ -277,15 +277,21 @@ Deno.serve(async (req: Request) => {
           query_embedding: queryEmbedding,
           match_grade: grade || null,
           match_subject_id: subjectId || null,
+          match_topic_id: topicId || null,
           match_count: 4,
         }),
         supabase.rpc("match_search_index", {
           query_embedding: queryEmbedding,
           match_grade: grade || null,
+          match_subject_id: subjectId || null,
+          match_topic_id: topicId || null,
           match_count: 4,
         }),
         supabase.rpc("match_past_paper_questions", {
           query_embedding: queryEmbedding,
+          match_grade: grade || null,
+          match_subject_id: subjectId || null,
+          match_topic_id: topicId || null,
           match_count: 2,
         }),
       ]);
@@ -326,11 +332,12 @@ Deno.serve(async (req: Request) => {
         // 1a. content_materials — curriculum docs/textbooks/past-paper references
         let materialsQuery = supabase
           .from("content_materials")
-          .select("title, source, content_summary, material_type, grade, subject_id")
+          .select("title, source, content_summary, material_type, grade, subject_id, topic_id")
           .or(orFilter(["title", "content_summary"]))
           .limit(4);
         if (grade) materialsQuery = materialsQuery.eq("grade", grade);
         if (subjectId) materialsQuery = materialsQuery.eq("subject_id", subjectId);
+        if (topicId) materialsQuery = materialsQuery.eq("topic_id", topicId);
         const { data: materials } = await materialsQuery;
 
         // 1b. search_index — topic/lesson/term descriptions already indexed
@@ -342,6 +349,8 @@ Deno.serve(async (req: Request) => {
           .or(orFilter(["display_title", "description", "searchable_text"]))
           .limit(4);
         if (grade) searchQuery = searchQuery.eq("grade", grade);
+        if (subjectId) searchQuery = searchQuery.eq("subject_id", subjectId);
+        if (topicId) searchQuery = searchQuery.eq("topic_id", topicId);
         const { data: indexHits } = await searchQuery;
 
         const contextLines: string[] = [];
@@ -362,6 +371,7 @@ Deno.serve(async (req: Request) => {
           .select("question_text, explanation")
           .or(orFilter(["question_text"]))
           .not("explanation", "is", null)
+          .eq("topic_id", topicId || "")
           .limit(2);
         if (similarQuestions && similarQuestions.length > 0) {
           workedExampleContext = similarQuestions
@@ -382,10 +392,10 @@ Deno.serve(async (req: Request) => {
         .select("title, source, content_summary, extracted_text")
         .eq("subject_id", subjectId)
         .eq("grade", grade)
-        .eq("material_type", "supplementary")
+        .in("material_type", ["supplementary", "textbook", "curriculum", "past_paper"])
         .in("status", ["approved", "ingested"])
         .order("uploaded_at", { ascending: false })
-        .limit(3);
+        .limit(topicId ? 5 : 3);
 
       supplementaryContext = (supplementaryMaterials || [])
         .map((material: any) => {
@@ -452,11 +462,12 @@ CURRENT LESSON CONTEXT:
 ${lessonContext}
 ${personalizationNote}
 
-ZAMBIAN CURRICULUM MATERIALS (use these FIRST as your primary source):
+VERIFIED WORKED SOLUTIONS FOR THIS QUESTION OR TOPIC (use these FIRST when answering the pupil's current question):
+${workedExampleContext || "No exact uploaded worked solution was found. Use the supplied question answer context when present."}
+ZAMBIAN CURRICULUM MATERIALS (use these after exact solutions as the supporting source):
 ${curriculumContext || "No specific curriculum materials found for this query. Use the lesson content above."}
 ${supplementaryContext ? `\nSUPPLEMENTARY MATERIALS AND SOLUTION GUIDES (use these when relevant, including for past-paper questions):\n${supplementaryContext}` : ""}
 ${uploadedSyllabusContext}
-${workedExampleContext ? `\nSIMILAR WORKED EXAMPLE FROM A PAST PAPER (use if relevant to the pupil's question):\n${workedExampleContext}` : ""}
 
 INSTRUCTIONS:
 1. Always teach from the latest uploaded syllabus for this subject and Form when available. It is the source of truth for the topics and subtopics; do not introduce an unrelated seeded topic.

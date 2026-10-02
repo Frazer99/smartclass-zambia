@@ -137,6 +137,7 @@ export type ProgressRecord = {
 export type ContentMaterial = {
   id: string;
   subject_id: string | null;
+  topic_id?: string | null;
   grade: number | null;
   material_type: string;
   title: string;

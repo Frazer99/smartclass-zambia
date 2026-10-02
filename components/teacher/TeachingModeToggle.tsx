@@ -1,6 +1,6 @@
 'use client';
 
-import { Clapperboard, FileText } from 'lucide-react';
+import { Volume2, FileText } from 'lucide-react';
 import { TeachingMode } from '@/lib/teachingMode';
 
 interface TeachingModeToggleProps {
@@ -13,13 +13,13 @@ export function TeachingModeToggle({ mode, onChange, className = '' }: TeachingM
   return (
     <div className={`inline-flex items-center rounded-lg border border-white/10 bg-white/5 p-1 ${className}`}>
       <button
-        onClick={() => onChange('video')}
+        onClick={() => onChange('voice')}
         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-          mode === 'video' ? 'bg-gold text-ink' : 'text-muted-board hover:text-chalk'
+          mode === 'voice' ? 'bg-gold text-ink' : 'text-muted-board hover:text-chalk'
         }`}
       >
-        <Clapperboard className="h-3.5 w-3.5" />
-        Video teacher
+        <Volume2 className="h-3.5 w-3.5" />
+        Voice teacher
       </button>
       <button
         onClick={() => onChange('text')}

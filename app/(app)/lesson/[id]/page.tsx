@@ -19,17 +19,22 @@ import {
   Loader as Loader2,
   ChevronRight,
   ChevronLeft,
+  BookOpen,
+  LayoutPanelTop,
+  MessageCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TeacherAvatar, TeacherAvatarState } from '@/components/teacher/TeacherAvatar';
-import { LiveTeacherAvatar, LiveTeacherAvatarHandle } from '@/components/teacher/LiveTeacherAvatar';
-import { TeachingModeToggle } from '@/components/teacher/TeachingModeToggle';
+import { ClassroomScene } from '@/components/lesson/classroom-scene';
 import { TeachingMode, loadTeachingMode, saveTeachingMode } from '@/lib/teachingMode';
 import { analyzeWeakAreas, RecentAttempt } from '@/lib/adaptiveLearning';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { readTutorResponse } from '@/lib/ai-teacher-stream';
+import { DEFAULT_TEACHER_VOICE, selectBrowserVoice, TeacherVoiceProfile, voiceProfileForPersona } from '@/lib/teacherVoice';
 
 type BoardItem = { type: 'heading' | 'body'; content: string; done?: boolean };
 type ChatMessage = { role: 'teacher' | 'pupil'; content: string; timestamp: number };
+type ClassroomMode = 'classroom' | 'board' | 'text';
 
 export default function LessonPage() {
   const params = useParams();
@@ -54,7 +59,8 @@ export default function LessonPage() {
   });
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [mode, setMode] = useState<TeachingMode>('video');
+  const [mode, setMode] = useState<TeachingMode>('voice');
+  const [classroomMode, setClassroomMode] = useState<ClassroomMode>('classroom');
   const [isThinking, setIsThinking] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [writing, setWriting] = useState(false);
@@ -63,10 +69,9 @@ export default function LessonPage() {
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
   const [weakAreaReason, setWeakAreaReason] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState('Mr. Chomba');
-  const [liveAvatarConnected, setLiveAvatarConnected] = useState(false);
+  const [voiceProfile, setVoiceProfile] = useState<TeacherVoiceProfile>(DEFAULT_TEACHER_VOICE);
   const chatRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
-  const liveAvatarRef = useRef<LiveTeacherAvatarHandle>(null);
   const speechPauseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lessonRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamsRef = useRef<MediaStream[]>([]);
@@ -79,7 +84,9 @@ export default function LessonPage() {
   }, [recordingUrl]);
 
   useEffect(() => {
-    setMode(loadTeachingMode());
+    const savedMode = loadTeachingMode();
+    setMode(savedMode);
+    setClassroomMode(savedMode === 'text' ? 'text' : 'classroom');
   }, []);
 
   useEffect(() => {
@@ -124,11 +131,7 @@ export default function LessonPage() {
   };
 
   const speak = (text: string) => {
-    if (mode !== 'video' || !voiceEnabled) return;
-    if (liveAvatarConnected) {
-      liveAvatarRef.current?.speak(text);
-      return;
-    }
+    if (mode !== 'voice' || !voiceEnabled) return;
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     if (speechPauseRef.current) clearTimeout(speechPauseRef.current);
     window.speechSynthesis.cancel();
@@ -140,7 +143,9 @@ export default function LessonPage() {
         return;
       }
       const utterance = new SpeechSynthesisUtterance(parts[partIndex++]);
-      utterance.rate = 0.95;
+      utterance.rate = voiceProfile.rate;
+      const browserVoice = selectBrowserVoice(window.speechSynthesis.getVoices(), voiceProfile);
+      if (browserVoice) utterance.voice = browserVoice;
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
         speechPauseRef.current = setTimeout(speakNextPart, 650);
@@ -199,20 +204,31 @@ export default function LessonPage() {
     (async () => {
       const { data } = await supabase
         .from('teacher_personas')
-        .select('name')
+        .select('name, gender, voice_locale, voice_accent, voice_gender, voice_tone, voice_rate')
         .eq('subject_id', subjectId)
         .lte('grade_min', profile.grade)
         .gte('grade_max', profile.grade)
         .maybeSingle();
-      if (data?.name) setTeacherName(data.name);
+      if (data?.name) {
+        setTeacherName(data.name);
+        setVoiceProfile(voiceProfileForPersona(data.name, data.voice_gender || data.gender, {
+          locale: data.voice_locale,
+          accent: data.voice_accent,
+          gender: data.voice_gender,
+          tone: data.voice_tone,
+          rate: data.voice_rate ? Number(data.voice_rate) : undefined,
+        }));
+      }
     })();
   }, [topic, profile]);
 
-  function handleModeChange(next: TeachingMode) {
+  function handleClassroomModeChange(next: ClassroomMode) {
     if (next === 'text' && window.speechSynthesis) window.speechSynthesis.cancel();
     setIsSpeaking(false);
-    setMode(next);
-    saveTeachingMode(next);
+    setClassroomMode(next);
+    const nextTeachingMode = next === 'text' ? 'text' : 'voice';
+    setMode(nextTeachingMode);
+    saveTeachingMode(nextTeachingMode);
   }
 
   const toggleLessonRecording = async () => {
@@ -279,9 +295,18 @@ export default function LessonPage() {
     }, 400);
   };
 
+  const addAiBoardItems = (items: unknown) => {
+    if (!Array.isArray(items)) return;
+    items.forEach((item, index) => {
+      if (!item || typeof item !== 'object') return;
+      const candidate = item as { type?: string; content?: unknown; done?: boolean };
+      if (!candidate.content || !['heading', 'body'].includes(candidate.type || '')) return;
+      window.setTimeout(() => addToBoard({ type: candidate.type as BoardItem['type'], content: String(candidate.content), done: candidate.done }), index * 450);
+    });
+  };
+
   const handleSend = async () => {
     if (!pupilInput.trim() || !content) return;
-    liveAvatarRef.current?.interrupt();
     setCheckpointPending(false);
     const msg: ChatMessage = { role: 'pupil', content: pupilInput, timestamp: Date.now() };
     const updated = [...chatMessages, msg];
@@ -328,10 +353,11 @@ export default function LessonPage() {
         return;
       }
       if (!response.ok) throw new Error('AI teacher request failed');
-      const data = await response.json();
+      const data = await readTutorResponse(response);
       const aiResponse = data.response || 'I am having trouble right now. Please try again.';
       setIsThinking(false);
       addTeacher(aiResponse);
+      addAiBoardItems(data.boardItems);
     } catch (err) {
       setIsThinking(false);
       const fallback = generateFallbackResponse(pupilInput, content);
@@ -422,8 +448,18 @@ export default function LessonPage() {
         </button>
         <div className="flex items-center gap-2">
           <span className="border border-gold/30 text-gold text-xs rounded-full px-2.5 py-0.5">{topic?.name}</span>
-          <TeachingModeToggle mode={mode} onChange={handleModeChange} />
-          {mode === 'video' && (
+          <div className="classroom-mode-toggle" aria-label="Lesson view">
+            <button onClick={() => handleClassroomModeChange('classroom')} className={classroomMode === 'classroom' ? 'active' : ''} title="Enter classroom mode">
+              <BookOpen className="h-3.5 w-3.5" /> <span>Classroom</span>
+            </button>
+            <button onClick={() => handleClassroomModeChange('board')} className={classroomMode === 'board' ? 'active' : ''} title="Focus on the smart board">
+              <LayoutPanelTop className="h-3.5 w-3.5" /> <span>Smart board</span>
+            </button>
+            <button onClick={() => handleClassroomModeChange('text')} className={classroomMode === 'text' ? 'active' : ''} title="Use the text tutor">
+              <MessageCircle className="h-3.5 w-3.5" /> <span>Text tutor</span>
+            </button>
+          </div>
+          {mode === 'voice' && (
             <button
               onClick={() => { if (voiceEnabled && window.speechSynthesis) window.speechSynthesis.cancel(); setVoiceEnabled(!voiceEnabled); }}
               className="flex items-center gap-1.5 text-xs border border-chalk/20 rounded-lg px-2.5 py-1.5 text-muted-board hover:text-chalk transition-colors"
@@ -455,22 +491,25 @@ export default function LessonPage() {
 
       <h1 className="font-display text-xl font-semibold text-chalk">{lesson.title}</h1>
 
+      {classroomMode === 'classroom' && (
+        <ClassroomScene
+          teacherName={teacherName}
+          grade={profile?.grade}
+          avatarState={avatarState}
+          writing={writing}
+          boardItems={boardItems}
+          lessonTitle={lesson.title}
+          status={writing ? 'Writing on the board...' : isThinking ? 'Thinking...' : isSpeaking ? 'Teaching' : completed ? 'Lesson complete' : 'Ready for class'}
+        />
+      )}
+
       {/* Main: Board + Teacher/Chat */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className={`grid gap-4 ${classroomMode === 'classroom' ? 'lg:grid-cols-1' : 'lg:grid-cols-2'}`}>
         {/* Smart Board with Teacher Avatar */}
-        <div className="space-y-3">
+        <div className={`space-y-3 ${classroomMode === 'classroom' ? 'hidden' : ''}`}>
           {/* Teacher Avatar */}
           <div className="card-board px-4 py-3 flex items-center gap-3">
-            <LiveTeacherAvatar
-              ref={liveAvatarRef}
-              subjectId={(topic as any)?.subject_id}
-              grade={profile?.grade}
-              enabled={mode === 'video' && voiceEnabled}
-              onSpeakingChange={setIsSpeaking}
-              onConnectionChange={setLiveAvatarConnected}
-              size="md"
-              teacherName={teacherName}
-            />
+            <TeacherAvatar state={mode === 'voice' ? avatarState : 'idle'} writing={writing} size="md" name={teacherName} />
             <div>
               <p className="text-sm font-semibold text-chalk">{teacherName}</p>
               <p className="text-xs text-muted-board">
@@ -536,7 +575,7 @@ export default function LessonPage() {
         {/* AI Teacher chat */}
         <div className="card-board overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
-            <TeacherAvatar state={mode === 'video' ? avatarState : 'idle'} size="xs" name={teacherName} />
+            <TeacherAvatar state={mode === 'voice' ? avatarState : 'idle'} size="xs" name={teacherName} />
             <span className="text-sm font-semibold text-chalk">Ask {teacherName}</span>
             {isThinking && <span className="ml-auto text-xs text-muted-board flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> thinking...</span>}
           </div>

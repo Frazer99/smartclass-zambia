@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Subject, ContentMaterial } from '@/lib/supabase-client';
+import { Subject, Topic, ContentMaterial } from '@/lib/supabase-client';
 import { FileText, Check, Loader as Loader2, Award, Building2, RefreshCw, Plus, X, Pencil, Trash2, ExternalLink, Sparkles, Search } from 'lucide-react';
 
 const MATERIAL_TYPES = ['curriculum', 'syllabus', 'past_paper', 'textbook', 'video', 'supplementary'];
@@ -9,10 +9,16 @@ type MaterialFilter = 'all' | 'approved' | 'ingested';
 
 export function MaterialsTab({
   materials, subjects, showAddForm, setShowAddForm, form, setForm, handleAdd, handleUpdate, handleDelete,
+  topics,
   handleSync, syncing, syncResult, editingId, setEditingId,
   handleGenerateEmbeddings, embedding, embeddingResult,
   selectedFile, setSelectedFile,
 }: any) {
+  const scopedTopics = (topics as Topic[]).filter((topic) =>
+    form.subject_id && form.grade
+      ? topic.subject_id === form.subject_id && String(topic.grade) === String(form.grade)
+      : false,
+  );
   const [activeFilter, setActiveFilter] = useState<MaterialFilter>('all');
   const [showFilteredMaterials, setShowFilteredMaterials] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,32 +146,40 @@ export function MaterialsTab({
               <input type="text" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="form-input" placeholder="e.g. Examinations Council of Zambia" />
             </FormField>
             <FormField label="Material Type">
-              <select value={form.material_type} onChange={(e) => setForm({ ...form, material_type: e.target.value })} className="form-input">
+              <select value={form.material_type} onChange={(e) => setForm({ ...form, material_type: e.target.value, topic_id: '' })} className="form-input">
                 {MATERIAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </FormField>
             <FormField label="Subject">
-              <select value={form.subject_id} onChange={(e) => setForm({ ...form, subject_id: e.target.value })} className="form-input">
+              <select value={form.subject_id} onChange={(e) => setForm({ ...form, subject_id: e.target.value, topic_id: '' })} className="form-input">
                 <option value="">— All subjects —</option>
                 {subjects.map((s: Subject) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </FormField>
             <FormField label="Form">
-              <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} className="form-input">
+              <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value, topic_id: '' })} className="form-input">
                 <option value="">— All grades —</option>
                 {FORMS.map((g) => <option key={g} value={g}>Form {g}</option>)}
               </select>
             </FormField>
-            <FormField label="PDF or video file" required>
+            {form.material_type !== 'curriculum' && form.material_type !== 'syllabus' && (
+              <FormField label="Topic" required>
+                <select value={form.topic_id} onChange={(e) => setForm({ ...form, topic_id: e.target.value })} className="form-input">
+                  <option value="">— Select topic —</option>
+                  {scopedTopics.map((topic) => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
+                </select>
+              </FormField>
+            )}
+            <FormField label="PDF, image, or video file" required>
               <input
                 type="file"
-                accept="application/pdf,.pdf,video/*,.mp4,.webm,.mov,.m4v,.mkv"
+                accept="application/pdf,.pdf,image/*,.png,.jpg,.jpeg,.webp,video/*,.mp4,.webm,.mov,.m4v,.mkv"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 className="form-input text-xs"
               />
             </FormField>
           </div>
-          <p className="text-xs text-muted-board">PDF uploads use local text extraction and OCR. Video uploads are transcribed with Whisper, then indexed for AI search. Keep video files under 25 MB for transcription.</p>
+          <p className="text-xs text-muted-board">PDF and image uploads are OCR-indexed for AI search. Video uploads are transcribed with Whisper. Assign every study material to its subject, Form, and topic.</p>
           <FormField label="Source Reference (URL)">
             <input type="text" value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} className="form-input" placeholder="e.g. ecz.edu.zm/pastpapers/maths" />
           </FormField>

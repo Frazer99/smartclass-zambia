@@ -19,8 +19,10 @@ type IngestRequest = {
   answer_extracted_text?: string | null;
   answer_storage_path?: string | null;
   force_ocr?: boolean;
+  file_type?: "pdf" | "image";
   past_paper_id?: string | null;
   subject_id?: string | null;
+  topic_id?: string | null;
   grade?: number | null;
   material_type: "curriculum" | "syllabus" | "past_paper" | "textbook" | "supplementary";
 };
@@ -156,6 +158,28 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
   const data = await response.json();
   const text = typeof data.output_text === "string" ? data.output_text.trim() : "";
   if (!text) throw new Error("No readable text was found in this PDF, even after automatic OCR.");
+  return text;
+}
+
+async function extractImageText(imageBytes: Uint8Array, mimeType: string): Promise<string> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("Image OCR requires OPENAI_API_KEY to be configured for the ingest-material Edge Function.");
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: Deno.env.get("OPENAI_OCR_MODEL") || "gpt-4o-mini",
+      temperature: 0,
+      input: [{ role: "user", content: [
+        { type: "input_text", text: "Transcribe all readable text from this image exactly. Preserve headings, question numbers, answer choices, marks, and line breaks. Return only the transcription." },
+        { type: "input_image", image_url: `data:${mimeType};base64,${base64Encode(imageBytes)}` },
+      ] }],
+    }),
+  });
+  if (!response.ok) throw new Error(`Image OCR failed with status ${response.status}.`);
+  const data = await response.json();
+  const text = typeof data.output_text === "string" ? data.output_text.trim() : "";
+  if (!text) throw new Error("No readable text was found in the uploaded image.");
   return text;
 }
 
@@ -310,7 +334,10 @@ Deno.serve(async (req: Request) => {
     if (downloadError || !file) throw new Error(downloadError?.message || "Could not download uploaded PDF");
 
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
-    let extractedText = body.extracted_text?.trim() || await extractSelectableText(pdfBytes);
+    const mimeType = file.type || (body.file_type === "image" ? "image/png" : "application/pdf");
+    let extractedText = body.extracted_text?.trim() || (body.file_type === "image"
+      ? await extractImageText(pdfBytes, mimeType)
+      : await extractSelectableText(pdfBytes));
     if (hasEncodedPdfText(extractedText)) {
       extractedText = decodeEncodedPdfText(extractedText);
     } else if (body.force_ocr || !hasUsableExtractedText(extractedText)) {
@@ -329,6 +356,7 @@ Deno.serve(async (req: Request) => {
     const summary = extractedText.slice(0, 4000);
     const { error: materialError } = await adminClient.from("content_materials").update({
       storage_path: body.storage_path,
+      topic_id: body.topic_id || null,
       extracted_text: extractedText,
       content_summary: summary,
       status: "ingested",
@@ -358,6 +386,12 @@ Deno.serve(async (req: Request) => {
       }
       const { data: subject } = await adminClient.from("subjects").select("id").ilike("name", details.subjectName).maybeSingle();
       if (!subject?.id) throw new Error(`Could not identify the subject from the paper. Detected: ${details.subjectName}`);
+      const form = details.grade > 6 ? details.grade - 7 : details.grade;
+      const { error: paperMaterialError } = await adminClient.from("content_materials").update({
+        subject_id: subject.id,
+        grade: form,
+      }).eq("id", body.material_id);
+      if (paperMaterialError) throw paperMaterialError;
 
       let duplicateQuery = adminClient
         .from("past_papers")
@@ -423,6 +457,17 @@ Deno.serve(async (req: Request) => {
             .update({ answer_key: answer.answer_key, explanation: answer.explanation })
             .eq("past_paper_id", createdPastPaperId)
             .eq("question_number", questionNumber);
+        }
+      }
+      const { data: questionsWithAnswers } = await adminClient
+        .from("past_paper_questions")
+        .select("id, question_text, explanation")
+        .eq("past_paper_id", createdPastPaperId)
+        .not("explanation", "is", null);
+      for (const question of questionsWithAnswers || []) {
+        const questionEmbedding = await generateEmbedding(`${question.question_text}. ${question.explanation || ""}`);
+        if (questionEmbedding) {
+          await adminClient.from("past_paper_questions").update({ embedding: questionEmbedding }).eq("id", question.id);
         }
       }
     }

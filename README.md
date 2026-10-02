@@ -16,7 +16,7 @@ for the original product requirements this build is based on.
 | Frontend | Next.js 13 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
 | Backend | Supabase (Postgres, Auth, Row Level Security, Edge Functions) |
 | AI | OpenAI (`gpt-4o-mini`) via a Supabase Edge Function, with a RAG layer over `content_materials` |
-| Voice | Browser Web Speech API (`SpeechSynthesis`) — no external TTS service yet |
+| Voice | Browser Web Speech API (`SpeechSynthesis`) with named Zambian English voice profiles |
 | Hosting | Netlify (`@netlify/plugin-nextjs`) |
 
 ---
@@ -77,7 +77,6 @@ supabase functions deploy ingest-material
 supabase functions deploy ingest-video-material
 supabase functions deploy create-payment
 supabase functions deploy verify-payment
-supabase functions deploy liveavatar-token
 ```
 
 ### Mobile money payments
@@ -106,8 +105,10 @@ that fallback or semantic embeddings are required.
 Admin video ingestion uses the same private bucket and the
 `ingest-video-material` Edge Function. It sends video audio to OpenAI Whisper,
 stores the transcript in `content_materials`, and creates a pgvector embedding
-so the RAG teacher can search the lesson. Video uploads are limited to 25 MB;
-configure `OPENAI_API_KEY` for this function.
+so the RAG teacher can search the lesson. Each video upload must be assigned to
+one subject, Form, and topic; pupils only see videos attached to the topic they
+are studying. Topic playback uses signed URLs from the private bucket. Video
+uploads are limited to 25 MB; configure `OPENAI_API_KEY` for this function.
 
 ### 3. Install and run
 
@@ -137,7 +138,7 @@ Netlify URL. For deeper tutor-quality checks, run `npm run eval:ai` with the
 evaluation account variables documented in `scripts/run-ai-evaluation.js`.
 
 For Supabase deployment, apply migrations before deploying functions, then
-deploy `ai-teacher-chat` and `liveavatar-token`. Run the smoke test against the
+deploy `ai-teacher-chat`, `content-materials`, and `ingest-video-material`. Run the smoke test against the
 deployed URL, run the AI evaluation suite, and verify the atomic rate-limit
 RPC (`consume_ai_rate_limit`) exists remotely before announcing the release.
 

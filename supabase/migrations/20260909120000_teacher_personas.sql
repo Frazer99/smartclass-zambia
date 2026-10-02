@@ -1,4 +1,4 @@
-/* Named teacher personas and admin LiveAvatar configuration. */
+/* Named teacher personas for voice and text teaching. */
 
 CREATE TABLE IF NOT EXISTS public.teacher_personas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -9,14 +9,8 @@ CREATE TABLE IF NOT EXISTS public.teacher_personas (
   grade_max int NOT NULL CHECK (grade_max BETWEEN 1 AND 6),
   persona_description text NOT NULL,
   avatar_style text NOT NULL DEFAULT 'generic',
-  liveavatar_avatar_id text,
-  liveavatar_voice_id text,
   CHECK (grade_min <= grade_max)
 );
-
-ALTER TABLE public.teacher_personas
-  ADD COLUMN IF NOT EXISTS liveavatar_avatar_id text,
-  ADD COLUMN IF NOT EXISTS liveavatar_voice_id text;
 
 ALTER TABLE public.teacher_personas ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "read_teacher_personas" ON public.teacher_personas;

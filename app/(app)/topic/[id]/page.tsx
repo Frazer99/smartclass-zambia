@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase, Topic, Lesson, LessonSession, Subject } from '@/lib/supabase-client';
+import { supabase, Topic, Lesson, LessonSession, Subject, ContentMaterial } from '@/lib/supabase-client';
 import { useAuth } from '@/components/auth-provider';
 import { ArrowLeft, Play, CircleCheck as CheckCircle2, Loader as Loader2, RotateCcw, ArrowRight, ClipboardCheck, Calculator, FlaskConical, Atom, TestTube, GraduationCap } from 'lucide-react';
 
@@ -20,6 +20,7 @@ export default function TopicPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [sessions, setSessions] = useState<LessonSession[]>([]);
   const [subject, setSubject] = useState<Subject | null>(null);
+  const [videos, setVideos] = useState<(ContentMaterial & { playbackUrl: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,16 +32,24 @@ export default function TopicPage() {
     if (!profile) return;
     const lessonIds = (await supabase.from('lessons').select('id').eq('topic_id', topicId)).data?.map((l: { id: string }) => l.id) || [];
 
-    const [topicRes, lessonsRes, sessionsRes] = await Promise.all([
-      supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).not('source_material_id', 'is', null).maybeSingle(),
+    const [topicRes, lessonsRes, sessionsRes, videosRes] = await Promise.all([
+      supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).maybeSingle(),
       supabase.from('lessons').select('*').eq('topic_id', topicId).order('display_order'),
       supabase.from('lesson_sessions').select('*').eq('user_id', profile.id).in('lesson_id', lessonIds),
+      supabase.from('content_materials').select('*').eq('topic_id', topicId).eq('material_type', 'video').in('status', ['approved', 'ingested']).order('uploaded_at', { ascending: false }),
     ]);
 
     setTopic(topicRes.data as Topic);
     if (topicRes.data?.subject) setSubject(topicRes.data.subject as Subject);
     setLessons(lessonsRes.data as Lesson[] || []);
     setSessions(sessionsRes.data as LessonSession[] || []);
+    const videoRows = (videosRes.data || []) as ContentMaterial[];
+    const signedVideos = (await Promise.all(videoRows.map(async (video) => {
+      if (!video.storage_path) return null;
+      const { data } = await supabase.storage.from('content-materials').createSignedUrl(video.storage_path, 3600);
+      return data?.signedUrl ? { ...video, playbackUrl: data.signedUrl } : null;
+    }))).filter((video): video is ContentMaterial & { playbackUrl: string } => Boolean(video));
+    setVideos(signedVideos);
     setLoading(false);
   };
 
@@ -96,6 +105,21 @@ export default function TopicPage() {
         <h1 className="font-display text-2xl font-semibold text-chalk">{topic.name}</h1>
         <p className="text-muted-board text-sm mt-1">{topic.description}</p>
       </div>
+
+      {videos.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-display text-lg font-semibold text-chalk">Topic video</h2>
+          {videos.map((video) => (
+            <div key={video.id} className="card-board overflow-hidden">
+              <video controls preload="metadata" className="w-full max-h-[28rem] bg-black" src={video.playbackUrl} />
+              <div className="p-4">
+                <h3 className="font-semibold text-chalk">{video.title}</h3>
+                {video.content_summary && <p className="text-sm text-muted-board mt-1">{video.content_summary}</p>}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* Lessons */}
       <div className="space-y-2">

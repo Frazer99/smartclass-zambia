@@ -155,7 +155,7 @@ export default function AdminPage() {
   const [embedding, setEmbedding] = useState(false);
   const [embeddingResult, setEmbeddingResult] = useState<{ embedded: number; failed: number; remaining: number } | null>(null);
   const [form, setForm] = useState({
-    title: '', source: '', material_type: 'supplementary', subject_id: '',
+    title: '', source: '', material_type: 'supplementary', subject_id: '', topic_id: '',
     grade: '', source_reference: '', content_summary: '', status: 'approved',
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -471,7 +471,7 @@ export default function AdminPage() {
 
   const fetchCurriculum = async () => {
     const [topicsRes, lessonsRes] = await Promise.all([
-      supabase.from('topics').select('*, subject:subjects(name, color)').not('source_material_id', 'is', null).order('grade, display_order'),
+      supabase.from('topics').select('*, subject:subjects(name, color)').order('grade, display_order'),
       supabase.from('lessons').select('*, topic:topics!inner(name, source_material_id, subject:subjects(name, color))').not('topics.source_material_id', 'is', null).order('display_order'),
     ]);
     setTopics(topicsRes.data as Topic[] || []);
@@ -546,17 +546,6 @@ export default function AdminPage() {
     setPersonasLoading(false);
   };
 
-  const handleSavePersona = async (id: string, avatarId: string, voiceId: string): Promise<boolean> => {
-    const { error } = await supabase.from('teacher_personas').update({
-      liveavatar_avatar_id: avatarId || null,
-      liveavatar_voice_id: voiceId || null,
-    }).eq('id', id);
-    if (error) { toast.error(`Failed to save persona: ${error.message}`); return false; }
-    toast.success('Persona updated.');
-    fetchPersonas();
-    return true;
-  };
-
   const fetchModeration = async () => {
     setModerationLoading(true);
     const { data } = await supabase.from('moderation_flags').select('*, profile:profiles(full_name)').order('created_at', { ascending: false }).limit(200);
@@ -586,11 +575,14 @@ export default function AdminPage() {
   // Materials handlers
   const handleAdd = async () => {
     if (!form.title || !form.source) { toast.error('Title and source are required.'); return; }
-    if (!selectedFile) { toast.error('Select a PDF or video file to upload.'); return; }
+    if (!selectedFile) { toast.error('Select a PDF, image, or video file to upload.'); return; }
     const isPdf = selectedFile.type === 'application/pdf' || /\.pdf$/i.test(selectedFile.name);
+    const isImage = selectedFile.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(selectedFile.name);
     const isVideo = selectedFile.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv)$/i.test(selectedFile.name);
-    if (!isPdf && !isVideo) { toast.error('Only PDF or supported video files can be uploaded.'); return; }
+    if (!isPdf && !isImage && !isVideo) { toast.error('Only PDF, image, or supported video files can be uploaded.'); return; }
+    if (isVideo && form.material_type !== 'video') { toast.error('Set Material Type to video for a video upload.'); return; }
     if (isVideo && selectedFile.size > 25 * 1024 * 1024) { toast.error('Video files must be 25 MB or smaller for transcription.'); return; }
+    if (form.material_type !== 'curriculum' && form.material_type !== 'syllabus' && (!form.subject_id || !form.grade || !form.topic_id)) { toast.error('Select a subject, Form, and topic for this material.'); return; }
     if (selectedFile && (form.material_type === 'curriculum' || form.material_type === 'syllabus') && !form.grade) {
       toast.error('Select the Form for a syllabus or curriculum PDF so its topics are assigned correctly.');
       return;
@@ -610,7 +602,7 @@ export default function AdminPage() {
     const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
       body: {
         title: form.title, source: form.source, material_type: form.material_type,
-        subject_id: form.subject_id || null, grade: form.grade ? parseInt(form.grade) : null,
+        subject_id: form.subject_id || null, topic_id: form.topic_id || null, grade: form.grade ? parseInt(form.grade) : null,
         source_reference: form.source_reference || null, content_summary: form.content_summary || null,
       },
     });
@@ -634,11 +626,12 @@ export default function AdminPage() {
           if (!ingestResult?.success || !ingestResult.transcribed_characters) throw new Error('Video was uploaded but no transcript was created.');
         } else {
         storagePath = `${createClientId()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, selectedFile, { contentType: 'application/pdf', upsert: false });
-        if (uploadError) throw new Error(`PDF upload failed: ${uploadError.message}`);
+        const contentType = isImage ? selectedFile.type || 'image/png' : 'application/pdf';
+        const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, selectedFile, { contentType, upsert: false });
+        if (uploadError) throw new Error(`${isImage ? 'Image' : 'PDF'} upload failed: ${uploadError.message}`);
         ingestionStarted = true;
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, subject_id: form.subject_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
+          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, file_type: isImage ? 'image' : 'pdf', subject_id: form.subject_id || null, topic_id: form.topic_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
         });
         if (ingestError) throw new Error(`PDF processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The PDF could not be processed.')}`);
         if (!ingestResult?.success || !ingestResult.extracted_characters) {
@@ -647,7 +640,7 @@ export default function AdminPage() {
         }
       }
       toast.success('Material added.');
-      setForm({ title: '', source: '', material_type: 'supplementary', subject_id: '', grade: '', source_reference: '', content_summary: '', status: 'approved' });
+      setForm({ title: '', source: '', material_type: 'supplementary', subject_id: '', topic_id: '', grade: '', source_reference: '', content_summary: '', status: 'approved' });
       setSelectedFile(null);
       setShowAddForm(false); fetchMaterials();
     } catch (error) {
@@ -1115,6 +1108,7 @@ export default function AdminPage() {
       {activeTab === 'materials' && (
         <MaterialsTab
           materials={materials} subjects={subjects} showAddForm={showAddForm} setShowAddForm={setShowAddForm}
+          topics={topics}
           form={form} setForm={setForm} handleAdd={handleAdd} handleUpdate={handleUpdate} handleDelete={handleDelete}
           handleSync={handleSync} syncing={syncing} syncResult={syncResult} editingId={editingId} setEditingId={setEditingId}
           handleGenerateEmbeddings={handleGenerateEmbeddings} embedding={embedding} embeddingResult={embeddingResult}
@@ -1159,7 +1153,7 @@ export default function AdminPage() {
       )}
 
       {activeTab === 'personas' && (
-        <PersonasTab personas={personas} loading={personasLoading} onSave={handleSavePersona} />
+        <PersonasTab personas={personas} loading={personasLoading} />
       )}
 
       {activeTab === 'users' && (
