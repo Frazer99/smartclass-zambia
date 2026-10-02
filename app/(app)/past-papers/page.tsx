@@ -136,7 +136,7 @@ export default function PastPapersPage() {
             an admin to add one under Content Materials.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="max-h-[38rem] space-y-3 overflow-y-auto pr-1">
             {subjectPapers.map((paper) => {
               const count = questionCounts[paper.id] || 0;
               return (

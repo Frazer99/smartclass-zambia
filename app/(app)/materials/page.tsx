@@ -81,7 +81,7 @@ export default function MaterialsPage() {
   const activeSubject = subjects.find((subject) => subject.id === activeSubjectId);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in [&>.space-y-3]:max-h-[38rem] [&>.space-y-3]:overflow-y-auto [&>.space-y-3]:pr-1">
       <div>
         <div className="flex items-center gap-2 mb-1"><BookOpen className="h-5 w-5 text-gold" /><h1 className="font-display text-2xl font-semibold text-chalk">Study Materials</h1></div>
         <p className="text-sm text-muted-board">Select a subject to view only the materials assigned to it.</p>

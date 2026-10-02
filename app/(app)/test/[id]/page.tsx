@@ -120,7 +120,7 @@ export default function TopicTestPage() {
         </label>
       </div>
 
-      <div className="space-y-3">
+      <div className="max-h-[38rem] space-y-3 overflow-y-auto pr-1">
         {questions.map((question, index) => <div key={question.id} className="card-paper p-5"><p className="font-semibold text-ink mb-3">{index + 1}. {question.question_text}</p><input value={answers[question.id] || ''} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder="Type your answer" className="w-full px-3 py-2.5 rounded-lg border-2 border-ink/30 bg-chalk text-ink text-sm focus:outline-none focus:ring-2 focus:ring-gold" /></div>)}
       </div>
       <button onClick={markTypedAnswers} disabled={marking} className="btn-gold w-full py-3 flex justify-center items-center gap-2"><ClipboardCheck className="h-4 w-4" /> Submit test for marking</button>

@@ -28,7 +28,7 @@ export function PersonasTab({ personas, loading }: {
         <h2 className="font-display text-lg font-semibold text-chalk mb-1">Teacher Personas</h2>
         <p className="text-sm text-muted-board">Teacher personas use the illustrated teacher with browser voice and text explanations.</p>
       </div>
-      <div className="space-y-4">
+      <div className="max-h-[38rem] space-y-4 overflow-y-auto pr-1">
         {personas.length === 0 ? <div className="card-board p-8 text-center text-muted-board">No teacher personas found. Apply the persona migration first.</div> : personas.map((persona) => {
           return <div key={persona.id} className="card-board p-5">
             <div className="flex items-center justify-between mb-3">

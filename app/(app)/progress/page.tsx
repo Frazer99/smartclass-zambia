@@ -151,7 +151,7 @@ export default function ProgressPage() {
         <h2 className="font-display text-lg font-semibold text-chalk mb-3">
           {activeSubject?.name} Topics
         </h2>
-        <div className="space-y-3">
+        <div className="max-h-[38rem] space-y-3 overflow-y-auto pr-1">
           {subjectTopics.map((topic) => {
               const tp = progress.find((p) => p.topic_id === topic.id);
               const mastery = tp ? Number(tp.mastery_percentage) : 0;

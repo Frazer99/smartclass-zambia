@@ -85,7 +85,7 @@ export default function PastPaperDetailPage() {
 
       <div>
         <h2 className="font-display text-lg font-semibold text-chalk mb-3">Or jump to a specific question</h2>
-        <div className="space-y-2">
+        <div className="max-h-[38rem] space-y-2 overflow-y-auto pr-1">
           {questions.map((q) => (
             <button
               key={q.id}

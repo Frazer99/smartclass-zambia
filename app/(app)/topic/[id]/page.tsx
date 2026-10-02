@@ -109,6 +109,7 @@ export default function TopicPage() {
       {videos.length > 0 && (
         <section className="space-y-3">
           <h2 className="font-display text-lg font-semibold text-chalk">Topic video</h2>
+          <div className="max-h-[38rem] space-y-3 overflow-y-auto pr-1">
           {videos.map((video) => (
             <div key={video.id} className="card-board overflow-hidden">
               <video controls preload="metadata" className="w-full max-h-[28rem] bg-black" src={video.playbackUrl} />
@@ -118,11 +119,12 @@ export default function TopicPage() {
               </div>
             </div>
           ))}
+          </div>
         </section>
       )}
 
       {/* Lessons */}
-      <div className="space-y-2">
+      <div className="max-h-[38rem] space-y-2 overflow-y-auto pr-1">
         {lessons.length === 0 && (
           <div className="card-board p-5 text-sm text-muted-board">
             This syllabus topic is ready, but its lesson is still being prepared. Please check again shortly.
