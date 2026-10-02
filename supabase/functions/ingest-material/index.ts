@@ -311,14 +311,10 @@ Deno.serve(async (req: Request) => {
 
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
     let extractedText = body.extracted_text?.trim() || await extractSelectableText(pdfBytes);
-    if (body.force_ocr || !hasUsableExtractedText(extractedText) || hasEncodedPdfText(extractedText)) {
-      try {
-        extractedText = await extractScannedPdfText(pdfBytes);
-      } catch (error) {
-        if (!hasEncodedPdfText(extractedText)) throw error;
-        console.error("OCR unavailable; decoding the PDF text layer locally:", error);
-        extractedText = decodeEncodedPdfText(extractedText);
-      }
+    if (hasEncodedPdfText(extractedText)) {
+      extractedText = decodeEncodedPdfText(extractedText);
+    } else if (body.force_ocr || !hasUsableExtractedText(extractedText)) {
+      extractedText = await extractScannedPdfText(pdfBytes);
     }
 
     let answerText = body.answer_extracted_text?.trim() || "";
