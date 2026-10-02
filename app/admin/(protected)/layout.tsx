@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import { LogoMark } from '@/components/brand/Logo';
-import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -62,12 +61,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-            <Link
-              href="/dashboard"
-              className="hidden sm:flex items-center gap-1.5 text-xs text-muted-board hover:text-chalk transition-colors"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to pupil app
-            </Link>
             <span className="max-w-[10rem] truncate text-xs text-muted-board">{profile?.full_name}</span>
             <button
               onClick={() => { signOut(); router.push('/admin/login'); }}
