@@ -31,6 +31,10 @@ export function LessonsTab({
     const t = topics.find((t) => t.id === id);
     return subjects.find((s) => s.id === t?.subject_id);
   };
+  const groupedLessons = subjects
+    .map((subject) => ({ subject, lessons: filtered.filter((lesson) => topicSubject(lesson.topic_id)?.id === subject.id) }))
+    .filter((group) => group.lessons.length > 0);
+  const unassignedLessons = filtered.filter((lesson) => !topicSubject(lesson.topic_id));
 
   return (
     <div className="space-y-4">
@@ -111,47 +115,41 @@ export function LessonsTab({
 
       {/* Table */}
       {showTable && <div className="card-board overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-left text-xs text-muted-board uppercase tracking-widest">
-                <th className="px-4 py-3 font-semibold">Title</th>
-                <th className="px-4 py-3 font-semibold">Topic</th>
-                <th className="px-4 py-3 font-semibold">Subject</th>
-                <th className="px-4 py-3 font-semibold">Difficulty</th>
-                <th className="px-4 py-3 font-semibold">Order</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-board">No lessons found.</td></tr>
-              ) : (
-                filtered.map((l) => {
-                  const subj = topicSubject(l.topic_id);
-                  return (
-                    <tr key={l.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3 font-medium text-chalk">{l.title}</td>
-                      <td className="px-4 py-3 text-muted-board text-xs">{topicName(l.topic_id)}</td>
-                      <td className="px-4 py-3">
-                        {subj && <span className="text-xs font-semibold rounded-full px-2 py-0.5" style={{ background: `${subj.color}25`, color: subj.color }}>{subj.name}</span>}
-                      </td>
-                      <td className="px-4 py-3"><span className="text-xs border border-chalk/20 text-muted-board rounded-full px-2 py-0.5">{l.difficulty}</span></td>
-                      <td className="px-4 py-3 text-muted-board font-mono-sc text-xs">{l.display_order}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleLessonEdit(l)} className="p-1.5 text-muted-board hover:text-gold transition-colors"><Pencil className="h-4 w-4" /></button>
-                          <button onClick={() => handleLessonDelete(l.id)} className="p-1.5 text-muted-board hover:text-rust transition-colors"><Trash2 className="h-4 w-4" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        {filtered.length === 0 ? <p className="px-4 py-8 text-center text-muted-board">No lessons found.</p> : <div className="divide-y divide-white/10">
+          {groupedLessons.map(({ subject, lessons: subjectLessons }) => <LessonSubjectSection key={subject.id} subject={subject} lessons={subjectLessons} topicName={topicName} handleLessonEdit={handleLessonEdit} handleLessonDelete={handleLessonDelete} />)}
+          {unassignedLessons.length > 0 && <LessonSubjectSection subject={null} lessons={unassignedLessons} topicName={topicName} handleLessonEdit={handleLessonEdit} handleLessonDelete={handleLessonDelete} />}
+        </div>}
       </div>}
     </div>
   );
+}
+
+function LessonSubjectSection({ subject, lessons, topicName, handleLessonEdit, handleLessonDelete }: {
+  subject: Subject | null;
+  lessons: Lesson[];
+  topicName: (id: string) => string;
+  handleLessonEdit: (lesson: Lesson) => void;
+  handleLessonDelete: (id: string) => void;
+}) {
+  return <section>
+    <div className="flex items-center justify-between gap-3 bg-white/[0.03] px-4 py-3">
+      <div className="flex items-center gap-2">
+        <BookOpen className="h-4 w-4 text-gold" />
+        <h3 className="font-display font-semibold text-chalk">{subject?.name || 'Unassigned subject'}</h3>
+      </div>
+      <span className="text-xs text-muted-board">{lessons.length} lesson{lessons.length === 1 ? '' : 's'}</span>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead><tr className="border-b border-white/10 text-left text-xs text-muted-board uppercase tracking-widest"><th className="px-4 py-3 font-semibold">Title</th><th className="px-4 py-3 font-semibold">Topic</th><th className="px-4 py-3 font-semibold">Difficulty</th><th className="px-4 py-3 font-semibold">Order</th><th className="px-4 py-3 font-semibold text-right">Actions</th></tr></thead>
+        <tbody>{lessons.map((lesson) => <tr key={lesson.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+          <td className="px-4 py-3 font-medium text-chalk">{lesson.title}</td>
+          <td className="px-4 py-3 text-muted-board text-xs">{topicName(lesson.topic_id)}</td>
+          <td className="px-4 py-3"><span className="text-xs border border-chalk/20 text-muted-board rounded-full px-2 py-0.5">{lesson.difficulty}</span></td>
+          <td className="px-4 py-3 text-muted-board font-mono-sc text-xs">{lesson.display_order}</td>
+          <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1"><button onClick={() => handleLessonEdit(lesson)} className="p-1.5 text-muted-board hover:text-gold transition-colors"><Pencil className="h-4 w-4" /></button><button onClick={() => handleLessonDelete(lesson.id)} className="p-1.5 text-muted-board hover:text-rust transition-colors"><Trash2 className="h-4 w-4" /></button></div></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+  </section>;
 }
