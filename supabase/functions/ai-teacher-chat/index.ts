@@ -158,11 +158,24 @@ Deno.serve(async (req: Request) => {
     }
     userId = userData.user.id;
 
-    if (!subjectId) {
-      return new Response(JSON.stringify({ error: "A subject is required for AI lessons" }), {
+    if (!subjectId || !grade) {
+      return new Response(JSON.stringify({ error: "A subject and Form are required for AI lessons" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    if (topicId) {
+      const { data: topicScope } = await supabase
+        .from("topics")
+        .select("subject_id, grade")
+        .eq("id", topicId)
+        .maybeSingle();
+      if (!topicScope || topicScope.subject_id !== subjectId || Number(topicScope.grade) !== Number(grade)) {
+        return new Response(JSON.stringify({ error: "The topic does not belong to the selected subject and Form" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
     const { data: hasSubscription, error: subscriptionError } = await supabase.rpc("has_active_subscription", {
       p_user_id: userId,

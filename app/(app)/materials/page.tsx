@@ -56,6 +56,7 @@ export default function MaterialsPage() {
         .from('content_materials')
         .select('id, title, source, source_reference, content_summary, extracted_text, storage_path, material_type, grade, uploaded_at, subject:subjects(name)')
         .eq('subject_id', activeSubjectId)
+        .eq('grade', profile.grade)
         .or(`title.ilike.%${safeSearchTerm}%,source.ilike.%${safeSearchTerm}%,content_summary.ilike.%${safeSearchTerm}%`)
         .order('uploaded_at', { ascending: false });
       setMaterials((data || []) as Material[]);

@@ -175,10 +175,10 @@ Deno.serve(async (req: Request) => {
         const topicId = updates.topic_id ?? existing?.topic_id;
         const subjectId = updates.subject_id ?? existing?.subject_id;
         const materialGrade = updates.grade ?? existing?.grade;
-        if (materialType !== "curriculum" && materialType !== "syllabus") {
+        if (topicId) {
           const { data: topic } = await supabase.from("topics").select("subject_id, grade").eq("id", topicId).maybeSingle();
           if (!topic || topic.subject_id !== subjectId || Number(topic.grade) !== Number(materialGrade)) {
-            return new Response(JSON.stringify({ error: "The video topic must belong to the selected subject and Form" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ error: "The topic must belong to the selected subject and Form" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
         }
       }
