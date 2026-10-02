@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
@@ -17,6 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [lessonsOpen, setLessonsOpen] = useState(false);
   const [pastPapersOpen, setPastPapersOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -47,6 +48,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     void fetchShellData();
   }, [profile]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+        setLessonsOpen(false);
+        setPastPapersOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [menuOpen]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-board flex items-center justify-center">
@@ -71,7 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Main menu */}
           <nav aria-label="Main menu" className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-1 sm:justify-end sm:gap-2">
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setNotificationsOpen((open) => !open)}
