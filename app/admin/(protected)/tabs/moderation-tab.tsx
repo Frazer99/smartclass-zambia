@@ -37,7 +37,7 @@ export function ModerationTab({ flags, loading, onMarkReviewed }: {
         </div>
       )}
       {flags.length === 0 ? <div className="card-board p-8 text-center text-muted-board text-sm">No flagged messages yet.</div> : (
-        <div className="space-y-2">{flags.map((flag) => (
+        <div className="max-h-[38rem] space-y-2 overflow-y-auto pr-1">{flags.map((flag) => (
           <div key={flag.id} className={`card-board p-4 ${flag.severity === 'self_harm' ? 'border-rust/50' : ''} ${flag.reviewed ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex items-center gap-2">

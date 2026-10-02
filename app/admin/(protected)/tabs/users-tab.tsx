@@ -119,8 +119,8 @@ export function UsersTab({
       </div>
 
       {/* Users table */}
-      {showTable && <div className="card-board overflow-hidden">
-        <div className="overflow-x-auto">
+      {showTable && <div className="card-board max-h-[38rem] overflow-auto">
+        <div className="min-w-[760px]">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 text-left text-xs text-muted-board uppercase tracking-widest">

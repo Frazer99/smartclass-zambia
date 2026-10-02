@@ -26,7 +26,7 @@ export function FeedbackTab({ feedback, loading }: { feedback: FeedbackWithProfi
       {feedback.length === 0 ? (
         <div className="card-board p-8 text-center text-muted-board text-sm">No feedback has been submitted yet.</div>
       ) : (
-        <div className="space-y-3">
+        <div className="max-h-[38rem] space-y-3 overflow-y-auto pr-1">
           {feedback.map((item) => (
             <article key={item.id} className="card-board p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">

@@ -74,8 +74,8 @@ export function PastPapersTab({
         {showTable ? 'Hide past papers' : 'Show past papers'}
       </button>
 
-      {showTable && <div className="card-board overflow-hidden">
-        <div className="overflow-x-auto">
+      {showTable && <div className="card-board max-h-[38rem] overflow-auto">
+        <div className="min-w-[760px]">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-white/10 text-left text-xs text-muted-board uppercase tracking-widest">
               <th className="px-4 py-3">Title</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3">Grade / Form</th><th className="px-4 py-3">Year</th><th className="px-4 py-3">Source</th><th className="px-4 py-3 text-right">Actions</th>

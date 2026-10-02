@@ -45,7 +45,7 @@ export function PaymentsTab({ payments, revenue, loading }: { payments: Payment[
       </button>
 
       {showDetails && <>
-      <div className="card-board overflow-hidden">
+      <div className="card-board max-h-[38rem] overflow-auto">
         <div className="p-4 border-b border-white/10 flex items-center gap-2"><CreditCard className="h-4 w-4 text-gold" /><h3 className="font-semibold text-chalk">Recent payment attempts</h3></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

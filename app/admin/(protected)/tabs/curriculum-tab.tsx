@@ -74,7 +74,7 @@ export function CurriculumTab({
         </div>
         {syllabusMaterials.length === 0 ? (
           <p className="text-sm text-muted-board">No uploaded syllabi yet.</p>
-        ) : syllabusMaterials.map((material) => (
+        ) : <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">{syllabusMaterials.map((material) => (
           <div key={material.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-chalk">{material.title}</p>
@@ -95,7 +95,7 @@ export function CurriculumTab({
               </button>
             </div>
           </div>
-        ))}
+        ))}</div>}
       </div>
 
       {showTopicForm && (
@@ -152,7 +152,7 @@ export function CurriculumTab({
       </div>
 
       {/* Topics list */}
-      {showTopics && <div className="space-y-2 animate-slide-up">
+      {showTopics && <div className="max-h-[38rem] space-y-2 overflow-y-auto pr-1 animate-slide-up">
         {filteredTopics.length === 0 ? (
           <div className="card-board p-8 text-center text-muted-board text-sm">No topics found.</div>
         ) : (
