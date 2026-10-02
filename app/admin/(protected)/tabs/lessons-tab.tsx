@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Lesson, Topic, Subject } from '@/lib/supabase-client';
-import { BookOpen, Plus, X, Pencil, Trash2, Search, Loader as Loader2 } from 'lucide-react';
+import { BookOpen, Plus, X, Pencil, Trash2, Search, Loader as Loader2, ChevronDown } from 'lucide-react';
 
 const DIFFICULTY_OPTIONS = ['introductory', 'standard', 'advanced'];
 
@@ -20,6 +20,7 @@ export function LessonsTab({
   handleLessonSubmit: () => void; handleLessonEdit: (l: Lesson) => void; handleLessonDelete: (id: string) => void;
 }) {
   const [showTable, setShowTable] = useState(false);
+  const [openSubjectId, setOpenSubjectId] = useState<string | null>(null);
   const filtered = lessons.filter((l) => {
     const matchSearch = !lessonSearch || l.title.toLowerCase().includes(lessonSearch.toLowerCase());
     const matchTopic = !lessonTopicFilter || l.topic_id === lessonTopicFilter;
@@ -116,30 +117,32 @@ export function LessonsTab({
       {/* Table */}
       {showTable && <div className="card-board overflow-hidden">
         {filtered.length === 0 ? <p className="px-4 py-8 text-center text-muted-board">No lessons found.</p> : <div className="divide-y divide-white/10">
-          {groupedLessons.map(({ subject, lessons: subjectLessons }) => <LessonSubjectSection key={subject.id} subject={subject} lessons={subjectLessons} topicName={topicName} handleLessonEdit={handleLessonEdit} handleLessonDelete={handleLessonDelete} />)}
-          {unassignedLessons.length > 0 && <LessonSubjectSection subject={null} lessons={unassignedLessons} topicName={topicName} handleLessonEdit={handleLessonEdit} handleLessonDelete={handleLessonDelete} />}
+          {groupedLessons.map(({ subject, lessons: subjectLessons }, index) => <LessonSubjectSection key={subject.id} subject={subject} lessons={subjectLessons} expanded={openSubjectId === subject.id || (openSubjectId === null && index === 0)} onToggle={() => setOpenSubjectId(openSubjectId === subject.id ? null : subject.id)} topicName={topicName} handleLessonEdit={handleLessonEdit} handleLessonDelete={handleLessonDelete} />)}
+          {unassignedLessons.length > 0 && <LessonSubjectSection subject={null} lessons={unassignedLessons} expanded={openSubjectId === 'unassigned'} onToggle={() => setOpenSubjectId(openSubjectId === 'unassigned' ? null : 'unassigned')} topicName={topicName} handleLessonEdit={handleLessonEdit} handleLessonDelete={handleLessonDelete} />}
         </div>}
       </div>}
     </div>
   );
 }
 
-function LessonSubjectSection({ subject, lessons, topicName, handleLessonEdit, handleLessonDelete }: {
+function LessonSubjectSection({ subject, lessons, expanded, onToggle, topicName, handleLessonEdit, handleLessonDelete }: {
   subject: Subject | null;
   lessons: Lesson[];
+  expanded: boolean;
+  onToggle: () => void;
   topicName: (id: string) => string;
   handleLessonEdit: (lesson: Lesson) => void;
   handleLessonDelete: (id: string) => void;
 }) {
   return <section>
-    <div className="flex items-center justify-between gap-3 bg-white/[0.03] px-4 py-3">
+    <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 bg-white/[0.03] px-4 py-3 text-left hover:bg-white/[0.06]">
       <div className="flex items-center gap-2">
         <BookOpen className="h-4 w-4 text-gold" />
         <h3 className="font-display font-semibold text-chalk">{subject?.name || 'Unassigned subject'}</h3>
       </div>
-      <span className="text-xs text-muted-board">{lessons.length} lesson{lessons.length === 1 ? '' : 's'}</span>
-    </div>
-    <div className="overflow-x-auto">
+      <div className="flex items-center gap-2"><span className="text-xs text-muted-board">{lessons.length} lesson{lessons.length === 1 ? '' : 's'}</span><ChevronDown className={`h-4 w-4 text-muted-board transition-transform ${expanded ? 'rotate-180' : ''}`} /></div>
+    </button>
+    {expanded && <div className="max-h-[32rem] overflow-auto">
       <table className="w-full text-sm">
         <thead><tr className="border-b border-white/10 text-left text-xs text-muted-board uppercase tracking-widest"><th className="px-4 py-3 font-semibold">Title</th><th className="px-4 py-3 font-semibold">Topic</th><th className="px-4 py-3 font-semibold">Difficulty</th><th className="px-4 py-3 font-semibold">Order</th><th className="px-4 py-3 font-semibold text-right">Actions</th></tr></thead>
         <tbody>{lessons.map((lesson) => <tr key={lesson.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -150,6 +153,6 @@ function LessonSubjectSection({ subject, lessons, topicName, handleLessonEdit, h
           <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1"><button onClick={() => handleLessonEdit(lesson)} className="p-1.5 text-muted-board hover:text-gold transition-colors"><Pencil className="h-4 w-4" /></button><button onClick={() => handleLessonDelete(lesson.id)} className="p-1.5 text-muted-board hover:text-rust transition-colors"><Trash2 className="h-4 w-4" /></button></div></td>
         </tr>)}</tbody>
       </table>
-    </div>
+    </div>}
   </section>;
 }
