@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/components/auth-provider';
 import { Toaster } from '@/components/ui/sonner';
+import { BackHome } from '@/components/back-home';
 
 export const metadata: Metadata = {
   title: 'SmartClass Zambia — Your AI Teacher, Anytime, Anywhere',
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {children}
+          <BackHome />
           <Toaster position="top-center" />
         </AuthProvider>
       </body>
