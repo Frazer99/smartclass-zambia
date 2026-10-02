@@ -69,9 +69,9 @@ function hasEncodedPdfText(text: string): boolean {
     const base = character >= "a" && character <= "z" ? 97 : 65;
     return String.fromCharCode(((character.charCodeAt(0) - base - 3 + 26) % 26) + base);
   });
-  const decodedMarkers = [" the ", " and ", " but ", " also ", " mathematical ", " nurturing "]
-    .filter((marker) => shifted.toLowerCase().includes(marker)).length;
-  return /\b0[A-Za-z]+/.test(text) || decodedMarkers >= 2;
+  const decodedWords = ["the", "and", "but", "also", "recording", "other", "means", "without", "prior", "permission", "mathematical", "nurturing"]
+    .filter((word) => new RegExp(`\\b${word}\\b`, "i").test(shifted)).length;
+  return /\b0[A-Za-z]+/.test(text) || decodedWords >= 3;
 }
 
 function decodeEncodedPdfText(text: string): string {
