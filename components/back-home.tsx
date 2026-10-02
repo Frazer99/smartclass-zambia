@@ -23,7 +23,7 @@ export function BackHome() {
       onClick={handleBack}
       aria-label="Go back"
       title="Go back"
-      className="fixed left-4 top-4 z-[70] inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-board-deep/95 px-3 py-2 text-xs font-semibold text-muted-board shadow-lg backdrop-blur transition-colors hover:border-gold/60 hover:text-chalk"
+      className="fixed right-4 top-4 z-[70] inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-board-deep/95 px-3 py-2 text-xs font-semibold text-muted-board shadow-lg backdrop-blur transition-colors hover:border-gold/60 hover:text-chalk sm:left-4 sm:right-auto"
     >
       <ArrowLeft className="h-3.5 w-3.5" />
       Back
