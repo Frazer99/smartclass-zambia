@@ -44,11 +44,12 @@ Deno.serve(async (req: Request) => {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, teacher_approved")
       .eq("id", userData.user.id)
       .maybeSingle();
 
     const isAdmin = profile?.role === "admin";
+    const isApprovedTeacher = profile?.role === "teacher" && profile?.teacher_approved === true;
 
     // GET / — list all content materials (available to all authenticated users)
     if (method === "GET" && (path === "" || path === "/")) {
@@ -64,8 +65,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // All write operations require admin role
-    if (!isAdmin) {
+    // Teachers may create scoped study materials; only admins may edit/delete.
+    if (!isAdmin && !(isApprovedTeacher && method === "POST")) {
       return new Response(JSON.stringify({ error: "Admin access required for this operation" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -90,7 +91,7 @@ Deno.serve(async (req: Request) => {
         }
         const { data: topic } = await supabase.from("topics").select("subject_id, grade").eq("id", topic_id).maybeSingle();
         if (!topic || topic.subject_id !== subject_id || Number(topic.grade) !== Number(grade)) {
-          return new Response(JSON.stringify({ error: "The video topic must belong to the selected subject and Form" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "The topic must belong to the selected subject and Form" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       }
 

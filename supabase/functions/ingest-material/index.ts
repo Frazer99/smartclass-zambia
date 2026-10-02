@@ -314,8 +314,9 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: authError } = await adminClient.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
     if (authError || !userData.user) return response({ error: "Invalid token" }, 401);
 
-    const { data: profile } = await adminClient.from("profiles").select("role").eq("id", userData.user.id).maybeSingle();
-    if (profile?.role !== "admin") return response({ error: "Admin access required" }, 403);
+    const { data: profile } = await adminClient.from("profiles").select("role, teacher_approved").eq("id", userData.user.id).maybeSingle();
+    const canIngest = profile?.role === "admin" || (profile?.role === "teacher" && profile?.teacher_approved === true);
+    if (!canIngest) return response({ error: "Admin or approved teacher access required" }, 403);
 
     const body = await req.json() as IngestRequest;
     if (!body.material_id || !body.storage_path) return response({ error: "material_id and storage_path are required" }, 400);
