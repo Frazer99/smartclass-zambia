@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Subject, Topic, ContentMaterial } from '@/lib/supabase-client';
-import { FileText, Check, Loader as Loader2, Award, Building2, RefreshCw, Plus, X, Pencil, Trash2, ExternalLink, Sparkles, Search } from 'lucide-react';
+import { FileText, Check, Loader as Loader2, Award, Building2, RefreshCw, Plus, X, Pencil, Trash2, ExternalLink, Sparkles, Search, ChevronDown } from 'lucide-react';
 
 const MATERIAL_TYPES = ['curriculum', 'syllabus', 'past_paper', 'textbook', 'video', 'supplementary'];
 const STATUS_OPTIONS = ['approved', 'ingested'];
@@ -22,6 +22,7 @@ export function MaterialsTab({
   const [activeFilter, setActiveFilter] = useState<MaterialFilter>('all');
   const [showFilteredMaterials, setShowFilteredMaterials] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [openMaterialId, setOpenMaterialId] = useState<string | null>(null);
   const statusFilteredMaterials = activeFilter === 'all'
     ? materials
     : materials.filter((material: ContentMaterial) => material.status === activeFilter);
@@ -193,65 +194,26 @@ export function MaterialsTab({
       )}
 
       {showFilteredMaterials && <div id="all-materials" className="scroll-mt-6">
-        <div className="card-board overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-left text-xs text-muted-board uppercase tracking-widest">
-                <th className="px-4 py-3 font-semibold">Title</th>
-                <th className="px-4 py-3 font-semibold">Source</th>
-                <th className="px-4 py-3 font-semibold">Type</th>
-                <th className="px-4 py-3 font-semibold">Subject</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMaterials.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-board">
-                  {normalizedSearchQuery ? `No materials match "${searchQuery}".` : activeFilter === 'all' ? 'No materials found. Use sync or add manually.' : `No ${activeFilter} materials found.`}
-                </td></tr>
-              ) : (
-                filteredMaterials.map((m: ContentMaterial) => (
-                  <tr key={m.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-chalk">{m.title}</p>
-                      {m.content_summary && <p className="text-xs text-muted-board mt-0.5 line-clamp-1">{m.content_summary}</p>}
-                      {(m as any).ingestion_error && <p className="text-xs text-rust mt-0.5 line-clamp-2">{(m as any).ingestion_error}</p>}
-                      {m.source_reference && (
-                        <a href={`https://${m.source_reference}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gold/70 hover:text-gold inline-flex items-center gap-0.5 mt-0.5">
-                          <ExternalLink className="h-3 w-3" /> {m.source_reference}
-                        </a>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-board text-xs">{m.source}</td>
-                    <td className="px-4 py-3"><span className="text-xs border border-chalk/20 text-muted-board rounded-full px-2 py-0.5">{m.material_type}</span></td>
-                    <td className="px-4 py-3 text-muted-board text-xs">{(m as any).subject?.name || '—'}{m.grade ? ` (G${m.grade})` : ''}</td>
-                    <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {editingId === m.id ? (
-                          <>
-                            <select value={m.status} onChange={(e) => handleUpdate(m.id, { status: e.target.value })} className="bg-white/5 border border-white/10 rounded text-xs text-chalk px-1.5 py-1">
-                              {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <button onClick={() => setEditingId(null)} className="p-1.5 text-muted-board hover:text-chalk"><X className="h-4 w-4" /></button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => setEditingId(m.id)} className="p-1.5 text-muted-board hover:text-gold transition-colors"><Pencil className="h-4 w-4" /></button>
-                            <button onClick={() => handleDelete(m.id)} className="p-1.5 text-muted-board hover:text-rust transition-colors"><Trash2 className="h-4 w-4" /></button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="card-board max-h-[38rem] overflow-y-auto divide-y divide-white/10">
+          {filteredMaterials.length === 0 ? <p className="px-4 py-8 text-center text-muted-board">{normalizedSearchQuery ? `No materials match "${searchQuery}".` : activeFilter === 'all' ? 'No materials found. Use sync or add manually.' : `No ${activeFilter} materials found.`}</p> : filteredMaterials.map((m: ContentMaterial) => {
+            const expanded = openMaterialId === m.id;
+            return <article key={m.id}>
+              <button type="button" onClick={() => setOpenMaterialId(expanded ? null : m.id)} className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-white/[0.04]">
+                <div className="min-w-0"><p className="truncate font-medium text-chalk">{m.title}</p><p className="mt-1 text-xs text-muted-board">{(m as any).subject?.name || '—'}{m.grade ? ` · Form ${m.grade}` : ''} · {m.material_type}</p></div>
+                <div className="flex shrink-0 items-center gap-3"><StatusBadge status={m.status} /><ChevronDown className={`h-4 w-4 text-muted-board transition-transform ${expanded ? 'rotate-180' : ''}`} /></div>
+              </button>
+              {expanded && <div className="space-y-3 border-t border-white/10 px-4 py-4">
+                <div className="grid gap-2 text-xs text-muted-board sm:grid-cols-2"><span>Source: <strong className="text-chalk">{m.source}</strong></span><span>Type: <strong className="text-chalk">{m.material_type}</strong></span></div>
+                {m.content_summary && <p className="text-sm text-muted-board">{m.content_summary}</p>}
+                {(m as any).ingestion_error && <p className="text-xs text-rust">{(m as any).ingestion_error}</p>}
+                {m.source_reference && <a href={`https://${m.source_reference}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-gold/70 hover:text-gold"><ExternalLink className="h-3 w-3" /> {m.source_reference}</a>}
+                <div className="flex items-center gap-2">
+                  {editingId === m.id ? <><select value={m.status} onChange={(e) => handleUpdate(m.id, { status: e.target.value })} className="bg-white/5 border border-white/10 rounded text-xs text-chalk px-1.5 py-1">{STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select><button onClick={() => setEditingId(null)} className="p-1.5 text-muted-board hover:text-chalk"><X className="h-4 w-4" /></button></> : <><button onClick={() => setEditingId(m.id)} className="inline-flex items-center gap-1.5 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-muted-board hover:text-gold"><Pencil className="h-3.5 w-3.5" /> Edit status</button><button onClick={() => handleDelete(m.id)} className="inline-flex items-center gap-1.5 border border-rust/40 rounded-lg px-2.5 py-1.5 text-xs text-rust hover:bg-rust/10"><Trash2 className="h-3.5 w-3.5" /> Delete</button></>}
+                </div>
+              </div>}
+            </article>;
+          })}
         </div>
-      </div>
       </div>}
     </div>
   );
