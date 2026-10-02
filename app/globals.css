@@ -267,10 +267,12 @@
 .classroom-mode-toggle button.active { background: hsl(41 76% 60%); color: hsl(148 37% 10%); }
 
 @media (max-width: 720px) {
-  .classroom-scene { min-height: 29rem; }
+  .classroom-scene { min-height: 27rem; border-radius: 16px 10px 16px 10px; }
   .classroom-window { display: none; }
-  .classroom-board { top: 3.5rem; width: 72%; min-height: 12rem; }
-  .classroom-teacher { left: 7%; bottom: 5.6rem; transform: scale(0.82); transform-origin: bottom left; }
+  .classroom-board { top: 3.25rem; width: calc(100% - 1.5rem); min-height: 12rem; border-width: 0.45rem; padding: 0.65rem 0.75rem; }
+  .classroom-board-bar { gap: 0.5rem; font-size: 0.5rem; }
+  .classroom-board-line { font-size: clamp(1.15rem, 6vw, 1.55rem); overflow-wrap: anywhere; }
+  .classroom-teacher { left: 0.5rem; bottom: 4.75rem; transform: scale(0.65); transform-origin: bottom left; }
   .classroom-student-four, .classroom-desk-three { display: none; }
   .classroom-mode-toggle span { display: none; }
   .classroom-mode-toggle button { padding: 0.45rem; }

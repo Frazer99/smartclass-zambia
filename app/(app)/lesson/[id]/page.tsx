@@ -86,7 +86,7 @@ export default function LessonPage() {
   useEffect(() => {
     const savedMode = loadTeachingMode();
     setMode(savedMode);
-    setClassroomMode(savedMode === 'text' ? 'text' : 'classroom');
+    setClassroomMode('classroom');
   }, []);
 
   useEffect(() => {
@@ -358,6 +358,10 @@ export default function LessonPage() {
       setIsThinking(false);
       addTeacher(aiResponse);
       addAiBoardItems(data.boardItems);
+      if (!Array.isArray(data.boardItems) || data.boardItems.length === 0) {
+        addToBoard({ type: 'heading', content: 'Teacher explanation' });
+        addToBoard({ type: 'body', content: aiResponse });
+      }
     } catch (err) {
       setIsThinking(false);
       const fallback = generateFallbackResponse(pupilInput, content);
@@ -442,23 +446,12 @@ export default function LessonPage() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <button onClick={() => router.push('/dashboard')} className="flex items-center gap-1.5 text-sm text-muted-board hover:text-chalk transition-colors">
           <ArrowLeft className="h-4 w-4" /> Dashboard
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           <span className="border border-gold/30 text-gold text-xs rounded-full px-2.5 py-0.5">{topic?.name}</span>
-          <div className="classroom-mode-toggle" aria-label="Lesson view">
-            <button onClick={() => handleClassroomModeChange('classroom')} className={classroomMode === 'classroom' ? 'active' : ''} title="Enter classroom mode">
-              <BookOpen className="h-3.5 w-3.5" /> <span>Classroom</span>
-            </button>
-            <button onClick={() => handleClassroomModeChange('board')} className={classroomMode === 'board' ? 'active' : ''} title="Focus on the smart board">
-              <LayoutPanelTop className="h-3.5 w-3.5" /> <span>Smart board</span>
-            </button>
-            <button onClick={() => handleClassroomModeChange('text')} className={classroomMode === 'text' ? 'active' : ''} title="Use the text tutor">
-              <MessageCircle className="h-3.5 w-3.5" /> <span>Text tutor</span>
-            </button>
-          </div>
           {mode === 'voice' && (
             <button
               onClick={() => { if (voiceEnabled && window.speechSynthesis) window.speechSynthesis.cancel(); setVoiceEnabled(!voiceEnabled); }}
@@ -491,17 +484,15 @@ export default function LessonPage() {
 
       <h1 className="font-display text-xl font-semibold text-chalk">{lesson.title}</h1>
 
-      {classroomMode === 'classroom' && (
-        <ClassroomScene
-          teacherName={teacherName}
-          grade={profile?.grade}
-          avatarState={avatarState}
-          writing={writing}
-          boardItems={boardItems}
-          lessonTitle={lesson.title}
-          status={writing ? 'Writing on the board...' : isThinking ? 'Thinking...' : isSpeaking ? 'Teaching' : completed ? 'Lesson complete' : 'Ready for class'}
-        />
-      )}
+      <ClassroomScene
+        teacherName={teacherName}
+        grade={profile?.grade}
+        avatarState={avatarState}
+        writing={writing}
+        boardItems={boardItems}
+        lessonTitle={lesson.title}
+        status={writing ? 'Writing on the board...' : isThinking ? 'Thinking...' : isSpeaking ? 'Teaching' : completed ? 'Lesson complete' : 'Ready for class'}
+      />
 
       {/* Main: Board + Teacher/Chat */}
       <div className={`grid gap-4 ${classroomMode === 'classroom' ? 'lg:grid-cols-1' : 'lg:grid-cols-2'}`}>
@@ -639,8 +630,8 @@ export default function LessonPage() {
       </div>
 
       {/* Controls */}
-      <div className="card-board px-5 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="card-board flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handlePrev}
             disabled={phase === 'intro'}
@@ -656,7 +647,7 @@ export default function LessonPage() {
             {phase === 'complete' && 'Complete'}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {completed && topic && (
             <button onClick={() => router.push(`/practice/${topic.id}`)} className="flex items-center gap-1.5 text-xs border border-teal/40 text-teal rounded-lg px-3 py-1.5 hover:bg-teal/10 transition-colors">
               <CheckCircle2 className="h-3.5 w-3.5" /> Practice
@@ -686,7 +677,7 @@ function generateFallbackResponse(input: string, content: LessonContent): string
     return 'You are doing great! Keep going. Do not hesitate to ask if anything is unclear.';
   }
   if (confused) {
-    return `No worries at all! Let me try a different approach. ${content.examples[0]?.problem ? 'Think about it like this: ' + content.examples[0].problem : 'Take it one step at a time and we will get there together.'}`;
+    return `No worries at all. Let me slow this down and explain it a different way. ${content.examples[0]?.problem ? 'Use this example as a guide: ' + content.examples[0].problem : 'We will take the idea one step at a time and connect each step to the one before it.'}`;
   }
-  return 'Good effort! The key is to work through it step by step. Follow the method shown on the whiteboard.';
+  return 'Good effort. I will work through the key idea step by step and put the reasoning on the whiteboard so you can follow the method.';
 }
