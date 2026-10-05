@@ -164,6 +164,7 @@ export type PastPaper = {
   source: string;
   storage_path?: string | null;
   answer_storage_path?: string | null;
+  solution_video_storage_path?: string | null;
   extracted_text?: string | null;
   source_material_id?: string | null;
   subject?: Subject;

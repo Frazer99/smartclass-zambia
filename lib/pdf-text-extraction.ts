@@ -70,8 +70,13 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
     onProgress?.(Math.round((pageNumber / pdf.numPages) * 30));
   }
 
-  const allPagesHaveSelectableText = selectablePages.length > 0 && selectablePages.every((pageText) => pageText.length >= 20);
-  if (allPagesHaveSelectableText) {
+  const weakPageNumbers = selectablePages
+    .map((pageText, index) => pageText.length < 20 ? index + 1 : null)
+    .filter((pageNumber): pageNumber is number => pageNumber !== null);
+  if (selectablePages.length === 0) {
+    return null;
+  }
+  if (weakPageNumbers.length === 0) {
     onProgress?.(100);
     return cleanExtractedText(selectablePages.join('\n'));
   }
@@ -89,8 +94,8 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
   });
 
   try {
-    const ocrPages: string[] = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const extractedPages = [...selectablePages];
+    for (const pageNumber of weakPageNumbers) {
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1.6 });
       const canvas = document.createElement('canvas');
@@ -100,12 +105,12 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
       if (!context) throw new Error('Could not create a canvas for local OCR.');
       await page.render({ canvasContext: context, viewport }).promise;
       const result = await worker.recognize(canvas);
-      ocrPages.push(result.data.text);
+      extractedPages[pageNumber - 1] = result.data.text;
       canvas.width = 1;
       canvas.height = 1;
-      onProgress?.(30 + Math.round((pageNumber / pdf.numPages) * 70));
+      onProgress?.(30 + Math.round((weakPageNumbers.indexOf(pageNumber) + 1) / weakPageNumbers.length * 70));
     }
-    return cleanExtractedText(ocrPages.join('\n')) || null;
+    return cleanExtractedText(extractedPages.join('\n')) || null;
   } finally {
     await worker.terminate();
   }

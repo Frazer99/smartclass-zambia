@@ -5,7 +5,7 @@ import { FileCheck, Plus, X, Pencil, Trash2, Upload, Search } from 'lucide-react
 export function PastPapersTab({
   papers, subjects, showForm, setShowForm,
   editingPaper, onSubmit, onEdit, onDelete, selectedFile, setSelectedFile,
-  selectedAnswerFile, setSelectedAnswerFile,
+  selectedAnswerFile, setSelectedAnswerFile, selectedSolutionFile, setSelectedSolutionFile,
 }: {
   papers: PastPaper[];
   subjects: Subject[];
@@ -18,6 +18,7 @@ export function PastPapersTab({
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
   selectedAnswerFile: File | null; setSelectedAnswerFile: (file: File | null) => void;
+  selectedSolutionFile: File | null; setSelectedSolutionFile: (file: File | null) => void;
 }) {
   const [showTable, setShowTable] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +64,8 @@ export function PastPapersTab({
           <input className="form-input text-xs" type="file" accept="application/pdf,.pdf" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
           <label className="text-sm text-muted-board">Answer key or marking scheme PDF (optional)</label>
           <input className="form-input text-xs" type="file" accept="application/pdf,.pdf" onChange={(e) => setSelectedAnswerFile(e.target.files?.[0] || null)} />
+          <label className="text-sm text-muted-board">Prerecorded solution video (optional)</label>
+          <input className="form-input text-xs" type="file" accept="video/*" onChange={(e) => setSelectedSolutionFile(e.target.files?.[0] || null)} />
           <p className="text-xs text-muted-board">The system reads the paper header and extracts its title, subject, Grade or Form, year, term, source, marks, duration, options, and questions automatically.</p>
           <button onClick={onSubmit} className="btn-gold flex items-center gap-1.5 text-sm px-4 py-2">
             <Upload className="h-4 w-4" /> Process PDF

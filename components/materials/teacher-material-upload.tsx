@@ -5,6 +5,7 @@ import { FileUp, Loader as Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase, Subject, Topic } from '@/lib/supabase-client';
 import { createClientId } from '@/lib/client-id';
+import { extractPdfTextLocally } from '@/lib/pdf-text-extraction';
 
 const FORMS = [1, 2, 3, 4, 5, 6];
 
@@ -47,6 +48,7 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
     let materialId: string | null = null;
     let storagePath: string | null = null;
     try {
+      const extractedText = isPdf ? await extractPdfTextLocally(file) : null;
       const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
         body: {
           title: form.title.trim(),
@@ -70,7 +72,7 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
         body: {
           material_id: materialId,
           storage_path: storagePath,
-          extracted_text: null,
+          extracted_text: extractedText,
           file_type: isImage ? 'image' : 'pdf',
           subject_id: form.subjectId,
           topic_id: form.topicId,

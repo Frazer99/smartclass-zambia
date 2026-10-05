@@ -23,6 +23,7 @@ import { FeedbackTab } from './tabs/feedback-tab';
 import { SystemHealthTab, ErrorLogEntry } from './tabs/system-health-tab';
 import { UserProfile } from './tabs/constants';
 import { createClientId } from '@/lib/client-id';
+import { extractPdfTextLocally } from '@/lib/pdf-text-extraction';
 
 type Tab = 'overview' | 'analytics' | 'materials' | 'lessons' | 'questions' | 'past-papers' | 'billing' | 'personas' | 'users' | 'curriculum' | 'moderation' | 'feedback' | 'system-health' | 'settings';
 
@@ -154,6 +155,7 @@ export default function AdminPage() {
   const [syncResult, setSyncResult] = useState<{ source: string; message: string } | null>(null);
   const [embedding, setEmbedding] = useState(false);
   const [embeddingResult, setEmbeddingResult] = useState<{ embedded: number; failed: number; remaining: number } | null>(null);
+  const [materialExtraction, setMaterialExtraction] = useState<{ processed: number; failed: number; total: number } | null>(null);
   const [form, setForm] = useState({
     title: '', source: '', material_type: 'supplementary', subject_id: '', topic_id: '',
     grade: '', source_reference: '', content_summary: '', status: 'approved',
@@ -175,6 +177,7 @@ export default function AdminPage() {
   });
   const [pastPaperFile, setPastPaperFile] = useState<File | null>(null);
   const [pastPaperAnswerFile, setPastPaperAnswerFile] = useState<File | null>(null);
+  const [pastPaperSolutionFile, setPastPaperSolutionFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -625,13 +628,14 @@ export default function AdminPage() {
           if (ingestError) throw new Error(`Video transcription failed: ${await edgeFunctionErrorMessage(ingestError, 'The video could not be transcribed.')}`);
           if (!ingestResult?.success || !ingestResult.transcribed_characters) throw new Error('Video was uploaded but no transcript was created.');
         } else {
+        const extractedText = isPdf ? await extractPdfTextLocally(selectedFile) : null;
         storagePath = `${createClientId()}-${selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const contentType = isImage ? selectedFile.type || 'image/png' : 'application/pdf';
         const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, selectedFile, { contentType, upsert: false });
         if (uploadError) throw new Error(`${isImage ? 'Image' : 'PDF'} upload failed: ${uploadError.message}`);
         ingestionStarted = true;
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, file_type: isImage ? 'image' : 'pdf', subject_id: form.subject_id || null, topic_id: form.topic_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
+          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: extractedText, file_type: isImage ? 'image' : 'pdf', subject_id: form.subject_id || null, topic_id: form.topic_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
         });
         if (ingestError) throw new Error(`PDF processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The PDF could not be processed.')}`);
         if (!ingestResult?.success || !ingestResult.extracted_characters) {
@@ -690,7 +694,11 @@ export default function AdminPage() {
     const isPdf = pastPaperFile.type === 'application/pdf' || /\.pdf$/i.test(pastPaperFile.name);
     if (!isPdf) { toast.error('Only PDF files can be uploaded.'); return; }
     if (pastPaperAnswerFile && !(pastPaperAnswerFile.type === 'application/pdf' || /\.pdf$/i.test(pastPaperAnswerFile.name))) { toast.error('The answer file must be a PDF.'); return; }
+    if (pastPaperSolutionFile && !pastPaperSolutionFile.type.startsWith('video/')) { toast.error('The prerecorded solution must be a video file.'); return; }
+    if (pastPaperSolutionFile && pastPaperSolutionFile.size > 100 * 1024 * 1024) { toast.error('The prerecorded solution must be 100 MB or smaller.'); return; }
     try {
+      const extractedText = await extractPdfTextLocally(pastPaperFile);
+      const answerExtractedText = pastPaperAnswerFile ? await extractPdfTextLocally(pastPaperAnswerFile) : null;
       const storagePath = `past-papers/${createClientId()}-${pastPaperFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, pastPaperFile, { contentType: 'application/pdf', upsert: false });
       if (uploadError) throw new Error(`PDF storage upload failed: ${uploadError.message}`);
@@ -700,6 +708,12 @@ export default function AdminPage() {
         const { error: answerUploadError } = await supabase.storage.from('content-materials').upload(answerStoragePath, pastPaperAnswerFile, { contentType: 'application/pdf', upsert: false });
         if (answerUploadError) throw new Error(`Answer PDF upload failed: ${answerUploadError.message}`);
       }
+      let solutionVideoStoragePath: string | null = null;
+      if (pastPaperSolutionFile) {
+        solutionVideoStoragePath = `past-paper-solutions/${createClientId()}-${pastPaperSolutionFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: solutionUploadError } = await supabase.storage.from('content-materials').upload(solutionVideoStoragePath, pastPaperSolutionFile, { contentType: pastPaperSolutionFile.type, upsert: false });
+        if (solutionUploadError) throw new Error(`Solution video upload failed: ${solutionUploadError.message}`);
+      }
 
       const { data: material, error: materialError } = await supabase.from('content_materials').insert({
         title: pastPaperFile.name.replace(/\.pdf$/i, ''), source: 'Uploaded PDF', material_type: 'past_paper', status: 'approved',
@@ -707,7 +721,8 @@ export default function AdminPage() {
       if (materialError || !material) throw new Error(`Paper record creation failed: ${materialError?.message || 'No material was returned.'}`);
 
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: null, answer_storage_path: answerStoragePath, answer_extracted_text: null, material_type: 'past_paper' },
+        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: extractedText, answer_storage_path: answerStoragePath, answer_extracted_text: answerExtractedText, material_type: 'past_paper' },
+        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: extractedText, answer_storage_path: answerStoragePath, answer_extracted_text: answerExtractedText, solution_video_storage_path: solutionVideoStoragePath, material_type: 'past_paper' },
       });
       if (ingestError) {
         throw new Error(await edgeFunctionErrorMessage(ingestError, 'The past paper PDF could not be processed.'));
@@ -723,6 +738,7 @@ export default function AdminPage() {
     toast.success(editingPastPaper ? 'Past paper updated.' : 'Past paper added.');
     setPastPaperForm({ subject_id: '', grade: '', year: String(new Date().getFullYear()), term: '', title: '', total_marks: '', duration_minutes: '', source: 'ECZ' });
     setPastPaperFile(null); setPastPaperAnswerFile(null); setEditingPastPaper(null); setShowPastPaperForm(false); fetchPastPapers();
+    setPastPaperFile(null); setPastPaperAnswerFile(null); setPastPaperSolutionFile(null); setEditingPastPaper(null); setShowPastPaperForm(false); fetchPastPapers();
   };
 
   const handlePastPaperEdit = (paper: PastPaper) => {
@@ -806,6 +822,50 @@ export default function AdminPage() {
     setEmbedding(false);
   };
 
+  const handleExtractCurrentMaterials = async () => {
+    const candidates = materials.filter((material) =>
+      material.storage_path && /\.pdf$/i.test(material.storage_path) && material.material_type !== 'video',
+    );
+    if (!candidates.length) {
+      toast.error('No stored PDF materials are available for extraction.');
+      return;
+    }
+    setMaterialExtraction({ processed: 0, failed: 0, total: candidates.length });
+    let processed = 0;
+    let failed = 0;
+    for (const material of candidates) {
+      try {
+        const { data: file, error: downloadError } = await supabase.storage.from('content-materials').download(material.storage_path!);
+        if (downloadError || !file) throw new Error(downloadError?.message || 'The stored PDF could not be downloaded.');
+        const localFile = new File([file], material.storage_path!.split('/').pop() || `${material.id}.pdf`, { type: 'application/pdf' });
+        const extractedText = await extractPdfTextLocally(localFile);
+        if (!extractedText) throw new Error('No text could be extracted locally.');
+        const existingPastPaper = pastPapers.find((paper) => paper.source_material_id === material.id);
+        const { data, error } = await supabase.functions.invoke('ingest-material', {
+          body: {
+            material_id: material.id,
+            storage_path: material.storage_path,
+            extracted_text: extractedText,
+            subject_id: material.subject_id,
+            topic_id: material.topic_id,
+            grade: material.grade,
+            past_paper_id: existingPastPaper?.id || null,
+            material_type: material.material_type,
+          },
+        });
+        if (error || !data?.success) throw new Error(error?.message || 'The material could not be indexed.');
+        processed += 1;
+      } catch (error) {
+        failed += 1;
+        console.error(`Material extraction failed for ${material.id}:`, error);
+      }
+      setMaterialExtraction({ processed, failed, total: candidates.length });
+    }
+    toast.success(`Extracted ${processed} of ${candidates.length} stored PDF materials${failed ? `; ${failed} failed` : ''}.`);
+    setMaterialExtraction(null);
+    fetchMaterials();
+  };
+
   // Lesson handlers
   const handleLessonSubmit = async () => {
     if (!lessonForm.topic_id || !lessonForm.title) { toast.error('Topic and title are required.'); return; }
@@ -860,6 +920,7 @@ export default function AdminPage() {
     let ingestionStarted = false;
     try {
       const title = syllabusUpload.title || `${subjects.find((subject) => subject.id === subject_id)?.name || 'Curriculum'} Syllabus Form ${grade}`;
+      const extractedText = await extractPdfTextLocally(file);
       const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
         body: { title, source: 'Admin syllabus upload', material_type: 'syllabus', subject_id, grade: Number(grade), status: 'approved' },
       });
@@ -870,7 +931,7 @@ export default function AdminPage() {
       if (uploadError) throw uploadError;
       ingestionStarted = true;
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.data.id, storage_path: storagePath, extracted_text: null, subject_id, grade: Number(grade), material_type: 'syllabus' },
+        body: { material_id: material.data.id, storage_path: storagePath, extracted_text: extractedText, subject_id, grade: Number(grade), material_type: 'syllabus' },
       });
       if (ingestError) throw new Error(`Syllabus processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The syllabus PDF could not be processed.')}`);
       if (!ingestResult?.success || !ingestResult.extracted_characters) throw new Error('Syllabus was uploaded but could not be indexed for AI use.');
@@ -1112,6 +1173,7 @@ export default function AdminPage() {
           form={form} setForm={setForm} handleAdd={handleAdd} handleUpdate={handleUpdate} handleDelete={handleDelete}
           handleSync={handleSync} syncing={syncing} syncResult={syncResult} editingId={editingId} setEditingId={setEditingId}
           handleGenerateEmbeddings={handleGenerateEmbeddings} embedding={embedding} embeddingResult={embeddingResult}
+          handleExtractCurrentMaterials={handleExtractCurrentMaterials} materialExtraction={materialExtraction}
           selectedFile={selectedFile} setSelectedFile={setSelectedFile}
         />
       )}
@@ -1145,6 +1207,7 @@ export default function AdminPage() {
           onSubmit={handlePastPaperSubmit} onEdit={handlePastPaperEdit} onDelete={handlePastPaperDelete}
           selectedFile={pastPaperFile} setSelectedFile={setPastPaperFile}
           selectedAnswerFile={pastPaperAnswerFile} setSelectedAnswerFile={setPastPaperAnswerFile}
+                  selectedSolutionFile={pastPaperSolutionFile} setSelectedSolutionFile={setPastPaperSolutionFile}
         />
       )}
 

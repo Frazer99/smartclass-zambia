@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader as Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Loader as Loader2, PlayCircle, Printer } from 'lucide-react';
 import { supabase, PastPaper, PastPaperQuestion } from '@/lib/supabase-client';
 
 export default function PastPaperSolutionsPage() {
@@ -11,6 +11,8 @@ export default function PastPaperSolutionsPage() {
   const paperId = params.id as string;
   const [paper, setPaper] = useState<(PastPaper & { subject?: { name: string } }) | null>(null);
   const [questions, setQuestions] = useState<PastPaperQuestion[]>([]);
+  const [answerUrl, setAnswerUrl] = useState<string | null>(null);
+  const [solutionVideoUrl, setSolutionVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,6 +23,15 @@ export default function PastPaperSolutionsPage() {
       ]);
       setPaper(paperResult.data as typeof paper);
       setQuestions((questionResult.data || []) as PastPaperQuestion[]);
+      const loadedPaper = paperResult.data as PastPaper | null;
+      if (loadedPaper?.answer_storage_path) {
+        const { data } = await supabase.storage.from('content-materials').createSignedUrl(loadedPaper.answer_storage_path, 3600);
+        setAnswerUrl(data?.signedUrl || null);
+      }
+      if (loadedPaper?.solution_video_storage_path) {
+        const { data } = await supabase.storage.from('content-materials').createSignedUrl(loadedPaper.solution_video_storage_path, 3600);
+        setSolutionVideoUrl(data?.signedUrl || null);
+      }
       setLoading(false);
     })();
   }, [paperId]);
@@ -38,6 +49,17 @@ export default function PastPaperSolutionsPage() {
           <Printer className="h-4 w-4" /> Print / Save PDF
         </button>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        {answerUrl && <a href={answerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm text-chalk hover:border-gold/50"><Download className="h-4 w-4" /> Download answer key</a>}
+        <a href={`/past-papers/${paperId}/run`} className="inline-flex items-center gap-2 rounded-lg border border-teal/50 px-3 py-2 text-sm text-teal hover:bg-teal/10"><PlayCircle className="h-4 w-4" /> Watch AI walkthrough</a>
+      </div>
+
+      {solutionVideoUrl && <section className="card-board p-5">
+        <div className="mb-3 flex items-center gap-2"><PlayCircle className="h-5 w-5 text-gold" /><h2 className="font-display text-lg font-semibold text-chalk">Prerecorded solution</h2></div>
+        <video controls preload="metadata" className="w-full max-h-[32rem] rounded-lg bg-black" src={solutionVideoUrl} />
+        <a href={solutionVideoUrl} download className="mt-3 inline-flex items-center gap-2 border border-gold/40 text-gold rounded-lg px-3 py-2 text-sm hover:bg-gold/10"><Download className="h-4 w-4" /> Download solution video</a>
+      </section>}
 
       <div>
         <p className="text-xs uppercase tracking-widest text-gold">{paper.subject?.name} · Form {paper.grade} · {paper.year}</p>

@@ -12,6 +12,7 @@ export function MaterialsTab({
   topics,
   handleSync, syncing, syncResult, editingId, setEditingId,
   handleGenerateEmbeddings, embedding, embeddingResult,
+  handleExtractCurrentMaterials, materialExtraction,
   selectedFile, setSelectedFile,
 }: any) {
   const scopedTopics = (topics as Topic[]).filter((topic) =>
@@ -111,6 +112,26 @@ export function MaterialsTab({
               <span className="text-muted-board"> · {embeddingResult.remaining} still remaining — click again to continue</span>
             )}
           </div>
+        )}
+      </div>
+
+      <div className="card-board p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <RefreshCw className="h-5 w-5 text-gold" />
+          <h2 className="font-display text-lg font-semibold text-chalk">Extract Stored PDFs</h2>
+        </div>
+        <p className="text-muted-board text-sm mb-4">
+          Re-extracts every stored PDF with the page-aware browser extractor and refreshes its AI index. Existing records are updated in place.
+        </p>
+        <button onClick={handleExtractCurrentMaterials} disabled={Boolean(materialExtraction)}
+          className="flex items-center gap-2 btn-gold text-sm px-4 py-2.5 disabled:opacity-40">
+          {materialExtraction ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {materialExtraction ? `Extracting ${materialExtraction.processed + materialExtraction.failed}/${materialExtraction.total}...` : 'Extract Current Materials'}
+        </button>
+        {materialExtraction && (
+          <p className="mt-3 text-sm text-muted-board">
+            Completed {materialExtraction.processed} · Failed {materialExtraction.failed} · Total {materialExtraction.total}
+          </p>
         )}
       </div>
 

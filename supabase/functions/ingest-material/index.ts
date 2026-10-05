@@ -18,6 +18,7 @@ type IngestRequest = {
   extracted_text?: string | null;
   answer_extracted_text?: string | null;
   answer_storage_path?: string | null;
+  solution_video_storage_path?: string | null;
   force_ocr?: boolean;
   file_type?: "pdf" | "image";
   past_paper_id?: string | null;
@@ -424,6 +425,7 @@ Deno.serve(async (req: Request) => {
           source: details.source,
           source_material_id: body.material_id,
           answer_storage_path: body.answer_storage_path || null,
+          solution_video_storage_path: body.solution_video_storage_path || null,
         }).select("id").single();
         if (paperError || !paper) throw new Error(paperError?.message || "Could not create past-paper record");
         createdPastPaperId = paper.id;
@@ -439,6 +441,7 @@ Deno.serve(async (req: Request) => {
           source: details.source,
           source_material_id: body.material_id,
           answer_storage_path: body.answer_storage_path || null,
+          solution_video_storage_path: body.solution_video_storage_path || null,
         }).eq("id", createdPastPaperId);
         if (updateError) throw updateError;
       }

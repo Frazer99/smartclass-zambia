@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase, PastPaper, PastPaperQuestion, Subject } from '@/lib/supabase-client';
-import { ArrowLeft, Clock, ListChecks, Loader as Loader2, BookOpenCheck } from 'lucide-react';
+import { ArrowLeft, Clock, Download, ListChecks, Loader as Loader2, BookOpenCheck, PlayCircle } from 'lucide-react';
 
 export default function PastPaperDetailPage() {
   const params = useParams();
@@ -12,6 +12,8 @@ export default function PastPaperDetailPage() {
 
   const [paper, setPaper] = useState<(PastPaper & { subject?: Subject }) | null>(null);
   const [questions, setQuestions] = useState<PastPaperQuestion[]>([]);
+  const [answerUrl, setAnswerUrl] = useState<string | null>(null);
+  const [solutionVideoUrl, setSolutionVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +27,16 @@ export default function PastPaperDetailPage() {
       .eq('id', paperId)
       .maybeSingle();
     setPaper(paperData as any);
+
+    const loadedPaper = paperData as PastPaper | null;
+    if (loadedPaper?.answer_storage_path) {
+      const { data } = await supabase.storage.from('content-materials').createSignedUrl(loadedPaper.answer_storage_path, 3600);
+      setAnswerUrl(data?.signedUrl || null);
+    }
+    if (loadedPaper?.solution_video_storage_path) {
+      const { data } = await supabase.storage.from('content-materials').createSignedUrl(loadedPaper.solution_video_storage_path, 3600);
+      setSolutionVideoUrl(data?.signedUrl || null);
+    }
 
     const { data: qData } = await supabase
       .from('past_paper_questions')
@@ -81,7 +93,16 @@ export default function PastPaperDetailPage() {
         >
           <BookOpenCheck className="h-4 w-4" /> View solutions without AI teacher
         </button>
+        {answerUrl && <a href={answerUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center justify-center gap-2 border border-white/20 text-chalk rounded-lg px-4 py-2 text-sm font-semibold w-full sm:w-auto">
+          <Download className="h-4 w-4" /> Download answer key
+        </a>}
       </div>
+
+      {solutionVideoUrl && <div className="card-board p-5">
+        <div className="flex items-center gap-2 mb-3"><PlayCircle className="h-5 w-5 text-gold" /><h2 className="font-display text-lg font-semibold text-chalk">Prerecorded solution</h2></div>
+        <video controls preload="metadata" className="w-full max-h-[32rem] rounded-lg bg-black" src={solutionVideoUrl} />
+        <a href={solutionVideoUrl} download className="mt-3 inline-flex items-center gap-2 border border-gold/40 text-gold rounded-lg px-3 py-2 text-sm hover:bg-gold/10"><Download className="h-4 w-4" /> Download solution video</a>
+      </div>}
 
       <div>
         <h2 className="font-display text-lg font-semibold text-chalk mb-3">Or jump to a specific question</h2>
