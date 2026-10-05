@@ -721,8 +721,16 @@ export default function AdminPage() {
       if (materialError || !material) throw new Error(`Paper record creation failed: ${materialError?.message || 'No material was returned.'}`);
 
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: extractedText, answer_storage_path: answerStoragePath, answer_extracted_text: answerExtractedText, material_type: 'past_paper' },
-        body: { material_id: material.id, past_paper_id: editingPastPaper?.id || null, storage_path: storagePath, extracted_text: extractedText, answer_storage_path: answerStoragePath, answer_extracted_text: answerExtractedText, solution_video_storage_path: solutionVideoStoragePath, material_type: 'past_paper' },
+        body: {
+          material_id: material.id,
+          past_paper_id: editingPastPaper?.id || null,
+          storage_path: storagePath,
+          extracted_text: extractedText,
+          answer_storage_path: answerStoragePath,
+          answer_extracted_text: answerExtractedText,
+          solution_video_storage_path: solutionVideoStoragePath,
+          material_type: 'past_paper',
+        },
       });
       if (ingestError) {
         throw new Error(await edgeFunctionErrorMessage(ingestError, 'The past paper PDF could not be processed.'));
