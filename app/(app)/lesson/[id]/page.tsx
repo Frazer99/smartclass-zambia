@@ -21,7 +21,6 @@ import {
   ChevronLeft,
   BookOpen,
   LayoutPanelTop,
-  MessageCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TeacherAvatar, TeacherAvatarState } from '@/components/teacher/TeacherAvatar';
@@ -70,7 +69,6 @@ export default function LessonPage() {
   const [weakAreaReason, setWeakAreaReason] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState('Mr. Chomba');
   const [voiceProfile, setVoiceProfile] = useState<TeacherVoiceProfile>(DEFAULT_TEACHER_VOICE);
-  const chatRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const speechPauseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lessonRecorderRef = useRef<MediaRecorder | null>(null);
@@ -94,9 +92,6 @@ export default function LessonPage() {
     fetchData();
   }, [profile, sessionId]);
 
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [chatMessages]);
   useEffect(() => {
     if (boardRef.current) boardRef.current.scrollTop = boardRef.current.scrollHeight;
   }, [boardItems]);
@@ -573,6 +568,50 @@ export default function LessonPage() {
         </div>
 
       </div>
+
+      {checkpointPending && !completed && (
+        <div className="card-board flex flex-wrap items-center gap-2 px-4 py-3">
+          <span className="text-xs font-semibold text-gold">Your answer</span>
+          <input
+            value={pupilInput}
+            onChange={(event) => setPupilInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void handleSend();
+              }
+            }}
+            disabled={isThinking}
+            autoFocus
+            placeholder={isListening ? interimTranscript || 'Listening...' : 'Type your response or use the microphone...'}
+            aria-label="Type your answer"
+            className="min-w-[12rem] flex-1 bg-transparent px-2 py-1 text-sm text-chalk outline-none placeholder:text-muted-board disabled:opacity-50"
+          />
+          {sttSupported && (
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={isThinking}
+              title={isListening ? 'Stop listening' : 'Speak your answer'}
+              aria-label={isListening ? 'Stop listening' : 'Speak your answer'}
+              className={`rounded-lg border p-2 transition-colors disabled:opacity-40 ${
+                isListening ? 'border-rust/60 bg-rust/10 text-rust' : 'border-white/10 text-muted-board hover:text-chalk'
+              }`}
+            >
+              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleSend()}
+            disabled={!pupilInput.trim() || isThinking}
+            className="btn-gold flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm disabled:opacity-40"
+          >
+            {isThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Send
+          </button>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="card-board flex flex-wrap items-center justify-between gap-2 px-5 py-3">
