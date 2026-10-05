@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Caveat:wght@500;600&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Patrick+Hand&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -84,7 +84,7 @@
     font-family: 'Fraunces', serif;
   }
   .font-hand {
-    font-family: 'Caveat', cursive;
+    font-family: 'Patrick Hand', cursive;
   }
   .font-mono-sc {
     font-family: 'Space Mono', monospace;
@@ -241,8 +241,8 @@
 .classroom-board-status { color: hsl(41 76% 60%); }
 .classroom-board-content { padding-top: 0.9rem; color: #fff6d5; }
 .classroom-board-heading { color: hsl(41 76% 60%); font-family: 'Space Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; }
-.classroom-board-line { margin-top: 0.55rem; font-family: 'Caveat', cursive; font-size: clamp(1.35rem, 3vw, 2rem); line-height: 1.05; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); }
-.classroom-board-empty { color: rgba(255, 247, 219, 0.5); font-family: 'Caveat', cursive; font-size: 1.5rem; }
+.classroom-board-line { margin-top: 0.55rem; font-family: 'Patrick Hand', cursive; font-size: clamp(1.35rem, 3vw, 2rem); line-height: 1.05; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); }
+.classroom-board-empty { color: rgba(255, 247, 219, 0.5); font-family: 'Patrick Hand', cursive; font-size: 1.5rem; }
 .classroom-teacher { position: absolute; left: 13%; bottom: 6.2rem; z-index: 2; display: flex; flex-direction: column; align-items: center; }
 .classroom-teacher-shadow { width: 7rem; height: 1.2rem; margin-top: -0.4rem; border-radius: 50%; background: rgba(0,0,0,0.36); filter: blur(4px); }
 .classroom-teacher-label { display: flex; flex-direction: column; align-items: center; margin-top: 0.5rem; color: rgba(255, 247, 219, 0.92); text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
