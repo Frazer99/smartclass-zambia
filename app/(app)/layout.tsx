@@ -17,6 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [lessonsOpen, setLessonsOpen] = useState(false);
   const [pastPapersOpen, setPastPapersOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Main menu */}
           <nav aria-label="Main menu" className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-1 sm:justify-end sm:gap-2">
-            <div ref={menuRef} className="relative">
+            <div ref={notificationsRef} className="relative">
               <button
                 type="button"
                 onClick={() => setNotificationsOpen((open) => !open)}
@@ -119,7 +120,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
             </div>
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}

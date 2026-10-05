@@ -124,8 +124,7 @@ export default function LessonPage() {
         content: `Hello ${firstName}! Welcome to today's lesson on ${ld.title}. Let us get started!`,
         timestamp: Date.now(),
       };
-      setChatMessages([msg]);
-      speak(msg.content);
+      addTeacher(msg.content, false);
     }
     setLoading(false);
   };
@@ -245,21 +244,29 @@ export default function LessonPage() {
     try {
       const sharedTab = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
       const microphone = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new AudioContext();
+      const AudioContextConstructor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextConstructor) throw new Error('Audio mixing is not supported in this browser.');
+      const audioContext = new AudioContextConstructor();
       const destination = audioContext.createMediaStreamDestination();
       audioContext.createMediaStreamSource(sharedTab).connect(destination);
       audioContext.createMediaStreamSource(microphone).connect(destination);
-      const recorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
+      const recordingStream = new MediaStream([
+        ...sharedTab.getVideoTracks(),
+        ...destination.stream.getAudioTracks(),
+      ]);
+      const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm', 'video/mp4']
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
 
       recordingChunksRef.current = [];
-      recordingStreamsRef.current = [sharedTab, microphone, destination.stream];
+      recordingStreamsRef.current = [sharedTab, microphone, recordingStream];
       if (recordingUrl) URL.revokeObjectURL(recordingUrl);
       setRecordingUrl(null);
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) recordingChunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'video/webm' });
         setRecordingUrl(URL.createObjectURL(blob));
         setIsRecordingLesson(false);
         recordingStreamsRef.current.forEach((stream) => stream.getTracks().forEach((track) => track.stop()));
@@ -272,20 +279,19 @@ export default function LessonPage() {
       recorder.start();
       setIsRecordingLesson(true);
       toast.success('Recording started. Share this lesson tab with audio.');
-    } catch {
-      toast.error('Recording needs permission to share the lesson tab and microphone.');
+    } catch (error) {
+      console.error('Lesson recording failed to start:', error);
+      recordingStreamsRef.current.forEach((stream) => stream.getTracks().forEach((track) => track.stop()));
+      recordingStreamsRef.current = [];
+      toast.error(error instanceof DOMException && error.name === 'NotAllowedError'
+        ? 'Screen or microphone access was blocked. Allow both permissions and try again.'
+        : 'Recording could not start. Use Chrome or Edge and share the lesson tab with audio.');
     }
   };
 
   const saveTranscript = (msgs: ChatMessage[]) => {
     supabase.from('lesson_sessions').update({ transcript: msgs }).eq('id', sessionId);
   };
-
-  const addTeacher = useCallback((text: string) => {
-    const msg: ChatMessage = { role: 'teacher', content: text, timestamp: Date.now() };
-    setChatMessages((prev) => { const u = [...prev, msg]; saveTranscript(u); return u; });
-    speak(text);
-  }, [voiceEnabled, sessionId, mode]);
 
   const addToBoard = (item: BoardItem) => {
     setWriting(true);
@@ -294,6 +300,13 @@ export default function LessonPage() {
       setWriting(false);
     }, 400);
   };
+
+  const addTeacher = useCallback((text: string, writeToBoard = true) => {
+    const msg: ChatMessage = { role: 'teacher', content: text, timestamp: Date.now() };
+    setChatMessages((prev) => { const u = [...prev, msg]; saveTranscript(u); return u; });
+    if (writeToBoard) addToBoard({ type: 'body', content: text });
+    speak(text);
+  }, [voiceEnabled, sessionId, mode]);
 
   const addAiBoardItems = (items: unknown) => {
     if (!Array.isArray(items)) return;
@@ -358,10 +371,6 @@ export default function LessonPage() {
       setIsThinking(false);
       addTeacher(aiResponse);
       addAiBoardItems(data.boardItems);
-      if (!Array.isArray(data.boardItems) || data.boardItems.length === 0) {
-        addToBoard({ type: 'heading', content: 'Teacher explanation' });
-        addToBoard({ type: 'body', content: aiResponse });
-      }
     } catch (err) {
       setIsThinking(false);
       const fallback = generateFallbackResponse(pupilInput, content);
@@ -397,7 +406,7 @@ export default function LessonPage() {
     setTimeout(() => addToBoard({ type: 'body', content: s.board }), 500);
     setCheckpointPending(true);
     setTimeout(() => {
-      addTeacher(`Before we continue, can you explain in your own words what ${s.title} means?`);
+      addTeacher(`Before we continue, can you explain in your own words what ${s.title} means?`, false);
     }, 900);
   };
 
@@ -418,7 +427,7 @@ export default function LessonPage() {
 
   const completeLesson = async () => {
     setPhase('complete'); setCompleted(true);
-    addTeacher('Excellent work! You have completed this lesson. Try the practice questions to test your understanding.');
+    addTeacher('Excellent work! You have completed this lesson. Try the practice questions to test your understanding.', false);
     await supabase.from('lesson_sessions').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', sessionId);
     if (profile && topic) {
       const { data: ex } = await supabase.from('progress_records').select('*').eq('user_id', profile.id).eq('topic_id', topic.id).maybeSingle();
@@ -494,7 +503,7 @@ export default function LessonPage() {
         status={writing ? 'Writing on the board...' : isThinking ? 'Thinking...' : isSpeaking ? 'Teaching' : completed ? 'Lesson complete' : 'Ready for class'}
       />
 
-      {/* Main: Board + Teacher/Chat */}
+      {/* Main: Board + Teacher */}
       <div className={`grid gap-4 ${classroomMode === 'classroom' ? 'lg:grid-cols-1' : 'lg:grid-cols-2'}`}>
         {/* Smart Board with Teacher Avatar */}
         <div className={`space-y-3 ${classroomMode === 'classroom' ? 'hidden' : ''}`}>
@@ -563,70 +572,6 @@ export default function LessonPage() {
           </div>
         </div>
 
-        {/* AI Teacher chat */}
-        <div className="card-board overflow-hidden flex flex-col">
-          <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
-            <TeacherAvatar state={mode === 'voice' ? avatarState : 'idle'} size="xs" name={teacherName} />
-            <span className="text-sm font-semibold text-chalk">Ask {teacherName}</span>
-            {isThinking && <span className="ml-auto text-xs text-muted-board flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> thinking...</span>}
-          </div>
-          <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3 h-64 scrollbar-thin">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'pupil' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
-                <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                    msg.role === 'pupil'
-                      ? 'bg-gold text-ink font-medium'
-                      : 'bg-white/8 text-chalk border border-white/10'
-                  }`}
-                  style={msg.role === 'teacher' ? { background: 'rgba(255,255,255,0.06)' } : undefined}
-                >
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-white/10 p-3">
-            {isListening && (
-              <div className="mb-2 flex items-center gap-1.5 text-xs text-gold">
-                <span className="flex gap-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse [animation-delay:150ms]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse [animation-delay:300ms]" />
-                </span>
-                Listening... {interimTranscript && <span className="text-muted-board italic">&ldquo;{interimTranscript}&rdquo;</span>}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <textarea
-                value={pupilInput}
-                onChange={(e) => setPupilInput(e.target.value)}
-                placeholder="Ask a question or answer the teacher..."
-                rows={1}
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-chalk placeholder:text-muted-board resize-none focus:outline-none focus:ring-1 focus:ring-gold"
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              />
-              {sttSupported && (
-                <button
-                  onClick={toggleListening}
-                  title={isListening ? 'Stop listening' : 'Speak your question'}
-                  className={`px-3 py-2 rounded-lg border transition-colors ${
-                    isListening ? 'bg-rust/20 border-rust text-rust' : 'border-white/10 text-muted-board hover:text-chalk'
-                  }`}
-                >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </button>
-              )}
-              <button
-                onClick={handleSend}
-                disabled={!pupilInput.trim() || isThinking}
-                className="btn-gold px-3 py-2 rounded-lg disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Controls */}
