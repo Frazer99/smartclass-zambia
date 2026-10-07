@@ -25,6 +25,10 @@ type IngestRequest = {
   subject_id?: string | null;
   topic_id?: string | null;
   grade?: number | null;
+  paper_subject_name?: string | null;
+  paper_grade?: number | null;
+  paper_year?: number | null;
+  paper_title?: string | null;
   material_type: "curriculum" | "syllabus" | "past_paper" | "textbook" | "supplementary";
 };
 
@@ -280,9 +284,10 @@ function parsePastPaperAnswers(text: string): Map<number, { answer_key: string; 
 function parsePastPaperDetails(text: string, fileName: string, subjectNames: string[]): ParsedPaperDetails {
   const header = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 80).join(" ");
   const firstLines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 20);
-  const fileAndHeader = `${header} ${fileName}`;
+  const fileLabel = fileName.split(/[\\/]/).pop() || fileName;
+  const fileAndHeader = `${header} ${fileLabel}`;
   const year = Number((fileAndHeader.match(/\b(19\d{2}|20\d{2})\b/) || [])[1]) || null;
-  const formMatch = fileAndHeader.match(/(?:form|grade|class|level)\s*(?:\.|:|-)?\s*(?:\d+\s*[-/]\s*)?(\d{1,2})/i)
+  const formMatch = fileAndHeader.match(/(?:form|grade|class|level|std|standard)[\s._:-]*(?:\d+\s*[-/]\s*)?(\d{1,2})/i)
     || fileAndHeader.match(/\b(?:f|g)\s*(\d{1,2})\b/i);
   const detectedGrade = formMatch?.[1] ? Number(formMatch[1]) : null;
   const grade = detectedGrade !== null && detectedGrade >= 1 && detectedGrade <= 12
@@ -294,8 +299,8 @@ function parsePastPaperDetails(text: string, fileName: string, subjectNames: str
   const subjectName = subjectNames
     .slice()
     .sort((left, right) => right.length - left.length)
-    .find((subject) => new RegExp(`(?:^|[^A-Za-z])${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^A-Za-z])`, "i").test(header)) || null;
-  const title = firstLines.find((line) => /paper|examination|exam|assessment/i.test(line)) || fileName.replace(/\.pdf$/i, "");
+    .find((subject) => new RegExp(`(?:^|[^A-Za-z])${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^A-Za-z])`, "i").test(fileAndHeader)) || null;
+  const title = firstLines.find((line) => /paper|examination|exam|assessment/i.test(line)) || fileLabel.replace(/\.pdf$/i, "");
   const source = /ecz|examinations council/i.test(header) ? "ECZ" : "Uploaded past paper";
 
   return { title, subjectName, grade, year, term, source, totalMarks, durationMinutes };
@@ -378,6 +383,10 @@ Deno.serve(async (req: Request) => {
       const { data: subjectRows, error: subjectsError } = await adminClient.from("subjects").select("id, name");
       if (subjectsError) throw subjectsError;
       const details = parsePastPaperDetails(extractedText, body.storage_path, (subjectRows || []).map((subject) => subject.name));
+      if (body.paper_subject_name?.trim()) details.subjectName = body.paper_subject_name.trim();
+      if (body.paper_grade) details.grade = Number(body.paper_grade);
+      if (body.paper_year) details.year = Number(body.paper_year);
+      if (body.paper_title?.trim()) details.title = body.paper_title.trim();
       if (!details.subjectName || !details.grade || !details.year) {
         const missing = [
           !details.subjectName ? "subject" : null,

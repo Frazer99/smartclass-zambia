@@ -172,7 +172,7 @@ export default function AdminPage() {
   const [showPastPaperForm, setShowPastPaperForm] = useState(false);
   const [editingPastPaper, setEditingPastPaper] = useState<PastPaper | null>(null);
   const [pastPaperForm, setPastPaperForm] = useState({
-    subject_id: '', grade: '', year: String(new Date().getFullYear()), term: '', title: '',
+    subject_id: '', grade: '', year: '', term: '', title: '',
     total_marks: '', duration_minutes: '', source: 'ECZ',
   });
   const [pastPaperFile, setPastPaperFile] = useState<File | null>(null);
@@ -734,6 +734,10 @@ export default function AdminPage() {
           answer_storage_path: answerStoragePath,
           answer_extracted_text: answerExtractedText,
           solution_video_storage_path: solutionVideoStoragePath,
+          paper_subject_name: subjects.find((subject) => subject.id === pastPaperForm.subject_id)?.name || null,
+          paper_grade: pastPaperForm.grade ? Number(pastPaperForm.grade) : null,
+          paper_year: pastPaperForm.year ? Number(pastPaperForm.year) : null,
+          paper_title: pastPaperForm.title.trim() || null,
           material_type: 'past_paper',
         },
       });
@@ -749,7 +753,7 @@ export default function AdminPage() {
       return;
     }
     toast.success(editingPastPaper ? 'Past paper updated.' : 'Past paper added.');
-    setPastPaperForm({ subject_id: '', grade: '', year: String(new Date().getFullYear()), term: '', title: '', total_marks: '', duration_minutes: '', source: 'ECZ' });
+    setPastPaperForm({ subject_id: '', grade: '', year: '', term: '', title: '', total_marks: '', duration_minutes: '', source: 'ECZ' });
     setPastPaperFile(null); setPastPaperAnswerFile(null); setEditingPastPaper(null); setShowPastPaperForm(false); fetchPastPapers();
     setPastPaperFile(null); setPastPaperAnswerFile(null); setPastPaperSolutionFile(null); setEditingPastPaper(null); setShowPastPaperForm(false); fetchPastPapers();
   };
@@ -1228,7 +1232,8 @@ export default function AdminPage() {
           onSubmit={handlePastPaperSubmit} onEdit={handlePastPaperEdit} onDelete={handlePastPaperDelete}
           selectedFile={pastPaperFile} setSelectedFile={setPastPaperFile}
           selectedAnswerFile={pastPaperAnswerFile} setSelectedAnswerFile={setPastPaperAnswerFile}
-                  selectedSolutionFile={pastPaperSolutionFile} setSelectedSolutionFile={setPastPaperSolutionFile}
+            selectedSolutionFile={pastPaperSolutionFile} setSelectedSolutionFile={setPastPaperSolutionFile}
+            paperForm={pastPaperForm} setPaperForm={setPastPaperForm}
         />
       )}
 

@@ -6,6 +6,7 @@ export function PastPapersTab({
   papers, subjects, showForm, setShowForm,
   editingPaper, onSubmit, onEdit, onDelete, selectedFile, setSelectedFile,
   selectedAnswerFile, setSelectedAnswerFile, selectedSolutionFile, setSelectedSolutionFile,
+  paperForm, setPaperForm,
 }: {
   papers: PastPaper[];
   subjects: Subject[];
@@ -19,6 +20,8 @@ export function PastPapersTab({
   setSelectedFile: (file: File | null) => void;
   selectedAnswerFile: File | null; setSelectedAnswerFile: (file: File | null) => void;
   selectedSolutionFile: File | null; setSelectedSolutionFile: (file: File | null) => void;
+  paperForm: { subject_id: string; grade: string; year: string; title: string; term: string; total_marks: string; duration_minutes: string; source: string };
+  setPaperForm: (value: { subject_id: string; grade: string; year: string; title: string; term: string; total_marks: string; duration_minutes: string; source: string }) => void;
 }) {
   const [showTable, setShowTable] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,6 +65,15 @@ export function PastPapersTab({
         <div className="card-board p-5 space-y-4 animate-slide-up">
           <h3 className="font-semibold text-chalk">Upload past-paper PDF</h3>
           <input className="form-input text-xs" type="file" accept="application/pdf,.pdf" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <select className="form-input" value={paperForm.subject_id} onChange={(e) => setPaperForm({ ...paperForm, subject_id: e.target.value })} aria-label="Paper subject">
+              <option value="">Subject (auto-detect)</option>
+              {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+            </select>
+            <input className="form-input" type="number" min="1" max="12" placeholder="Form / Grade" value={paperForm.grade} onChange={(e) => setPaperForm({ ...paperForm, grade: e.target.value })} />
+            <input className="form-input" type="number" min="1900" max="2100" placeholder="Year (auto-detect)" value={paperForm.year} onChange={(e) => setPaperForm({ ...paperForm, year: e.target.value })} />
+          </div>
+          <input className="form-input" placeholder="Paper title (optional)" value={paperForm.title} onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })} />
           <label className="text-sm text-muted-board">Answer key or marking scheme PDF (optional)</label>
           <input className="form-input text-xs" type="file" accept="application/pdf,.pdf" onChange={(e) => setSelectedAnswerFile(e.target.files?.[0] || null)} />
           <label className="text-sm text-muted-board">Prerecorded solution video (optional)</label>
