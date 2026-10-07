@@ -6,5 +6,6 @@ export type UserProfile = {
   grade: number;
   school: string | null;
   role: string;
+  teacher_approved?: boolean;
   created_at: string;
 };

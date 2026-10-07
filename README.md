@@ -50,6 +50,10 @@ MTN_MOMO_SUBSCRIPTION_KEY=... # Ocp-Apim subscription key
 MTN_MOMO_TARGET_ENV=sandbox   # use production after approval
 MTN_MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
 SITE_URL=https://your-production-site.example.com
+ENVIRONMENT=production
+CORS_ORIGINS=https://your-production-site.example.com
+DPO_BASE_URL=https://secure.3gdirectpay.com/API/v6/
+DPO_CHECKOUT_URL=https://secure.3gdirectpay.com/payv3.php
 ```
 
 Set the private values in **Supabase Dashboard → Project Settings → Edge
@@ -57,6 +61,8 @@ Functions → Secrets**. Never put `OPENAI_API_KEY`, `DPO_COMPANY_TOKEN`, a
 Supabase service-role key, or a database password in a browser-exposed `.env`
 file. `SITE_URL` must be the public URL DPO redirects to after checkout.
 For local testing it can be `http://localhost:3000`.
+When the legacy Python API runs with `ENVIRONMENT=production`, it rejects the
+development secret, wildcard CORS, and non-HTTPS site URLs.
 
 ### 2. Database
 

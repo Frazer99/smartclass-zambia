@@ -1,13 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileUp, Loader as Loader2, CheckCircle2 } from 'lucide-react';
+import { FileUp, Loader as Loader2, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase, Subject, Topic } from '@/lib/supabase-client';
 import { createClientId } from '@/lib/client-id';
 import { extractPdfTextLocally } from '@/lib/pdf-text-extraction';
 
 const FORMS = [1, 2, 3, 4, 5, 6];
+type TeacherMaterial = {
+  id: string;
+  title: string;
+  source: string;
+  storage_path?: string | null;
+  subject?: { name: string }[] | null;
+};
 
 export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -16,6 +23,20 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedTitle, setUploadedTitle] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<TeacherMaterial[]>([]);
+  const [editingMaterial, setEditingMaterial] = useState<string | null>(null);
+  const [editingValues, setEditingValues] = useState({ title: '', source: '' });
+
+  const loadMaterials = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('content_materials')
+      .select('id, title, source, storage_path, subject:subjects(name)')
+      .eq('uploaded_by', user.id)
+      .order('uploaded_at', { ascending: false });
+    setMaterials((data || []) as TeacherMaterial[]);
+  };
 
   useEffect(() => {
     void Promise.all([
@@ -25,6 +46,7 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
       setSubjects((subjectsResult.data || []) as Subject[]);
       setTopics((topicsResult.data || []) as Topic[]);
     });
+    void loadMaterials();
   }, []);
 
   const scopedTopics = topics.filter((topic) =>
@@ -87,6 +109,7 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
       setUploadedTitle(form.title.trim());
       setForm({ ...form, title: '', source: '', topicId: '' });
       setFile(null);
+      await loadMaterials();
       toast.success('Material uploaded and added to the AI teacher knowledge base.');
     } catch (error) {
       if (storagePath) await supabase.storage.from('content-materials').remove([storagePath]);
@@ -95,6 +118,32 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
     } finally {
       setUploading(false);
     }
+  };
+
+  const saveMaterial = async (materialId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/content-materials/${materialId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+      body: JSON.stringify(editingValues),
+    });
+    if (!response.ok) { const payload = await response.json().catch(() => null); toast.error(payload?.error || 'Material update failed.'); return; }
+    setEditingMaterial(null);
+    await loadMaterials();
+    toast.success('Material details updated.');
+  };
+
+  const deleteMaterial = async (material: TeacherMaterial) => {
+    if (!confirm(`Delete ${material.title}?`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/content-materials/${material.id}`, {
+      method: 'DELETE',
+      headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+    });
+    if (!response.ok) { const payload = await response.json().catch(() => null); toast.error(payload?.error || 'Material deletion failed.'); return; }
+    if (material.storage_path) await supabase.storage.from('content-materials').remove([material.storage_path]);
+    await loadMaterials();
+    toast.success('Material deleted.');
   };
 
   return (
@@ -128,6 +177,23 @@ export function TeacherMaterialUpload({ teacherGrade }: { teacherGrade: number }
         {uploading ? 'Uploading and indexing...' : 'Upload material'}
       </button>
       {uploadedTitle && <p className="flex items-center gap-2 text-sm text-teal"><CheckCircle2 className="h-4 w-4" /> {uploadedTitle} is ready for AI teaching.</p>}
+      <div className="border-t border-white/10 pt-4 space-y-3">
+        <h3 className="font-display text-sm font-semibold text-chalk">Your uploaded materials</h3>
+        {materials.length === 0 ? <p className="text-sm text-muted-board">No materials uploaded by you yet.</p> : materials.map((material) => (
+          <div key={material.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 p-3">
+            {editingMaterial === material.id ? <>
+              <input value={editingValues.title} onChange={(event) => setEditingValues({ ...editingValues, title: event.target.value })} className="form-input min-w-[12rem] flex-1" aria-label="Material title" />
+              <input value={editingValues.source} onChange={(event) => setEditingValues({ ...editingValues, source: event.target.value })} className="form-input min-w-[10rem] flex-1" aria-label="Material source" />
+              <button type="button" onClick={() => void saveMaterial(material.id)} className="text-xs text-teal">Save</button>
+              <button type="button" onClick={() => setEditingMaterial(null)} className="text-xs text-muted-board">Cancel</button>
+            </> : <>
+              <div className="min-w-0 flex-1"><p className="truncate text-sm text-chalk">{material.title}</p><p className="text-xs text-muted-board">{material.subject?.[0]?.name || 'Unassigned'} · {material.source}</p></div>
+              <button type="button" onClick={() => { setEditingMaterial(material.id); setEditingValues({ title: material.title, source: material.source }); }} className="inline-flex items-center gap-1 text-xs text-gold"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+              <button type="button" onClick={() => void deleteMaterial(material)} className="inline-flex items-center gap-1 text-xs text-rust"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+            </>}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

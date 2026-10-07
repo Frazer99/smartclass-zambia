@@ -11,13 +11,14 @@ function exportUserProgressCsv(user: UserProfile, progress: any[]) {
 
 export function UsersTab({
   users, userSearch, setUserSearch, userGradeFilter, setUserGradeFilter,
-  toggleUserRole, currentUserId, selectedUser, setSelectedUser,
+  toggleUserRole, setTeacherApproval, currentUserId, selectedUser, setSelectedUser,
   createManagedUser, deleteManagedUser,
   openUserDetail, userProgress, userSessions, refreshUsers,
 }: {
   users: UserProfile[]; userSearch: string; setUserSearch: (v: string) => void;
   userGradeFilter: number | null; setUserGradeFilter: (v: number | null) => void;
   toggleUserRole: (id: string, role: string) => void; currentUserId?: string;
+  setTeacherApproval: (id: string, approved: boolean) => Promise<void>;
   createManagedUser: (input: { email: string; password: string; fullName: string; role: 'admin' | 'teacher'; school: string; grade: number }) => Promise<boolean>;
   deleteManagedUser: (id: string) => Promise<boolean>;
   selectedUser: UserProfile | null; setSelectedUser: (u: UserProfile | null) => void;
@@ -153,10 +154,15 @@ export function UsersTab({
                       <span className={`text-xs font-semibold rounded-full px-2.5 py-0.5 border ${u.role === 'admin' ? 'text-gold border-gold/40 bg-gold/10' : 'text-muted-board border-white/20'}`}>
                         {u.role}
                       </span>
+                      {u.role === 'teacher' && <span className={`ml-2 text-xs ${u.teacher_approved ? 'text-teal' : 'text-gold'}`}>{u.teacher_approved ? 'Approved' : 'Pending'}</span>}
                     </td>
                     <td className="px-4 py-3 text-muted-board text-xs">{new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-2">
+                      {u.role === 'teacher' && <button onClick={() => setTeacherApproval(u.id, !u.teacher_approved)}
+                        className={`text-xs border rounded-lg px-2.5 py-1 transition-colors ${u.teacher_approved ? 'border-rust/40 text-rust hover:bg-rust/10' : 'border-teal/40 text-teal hover:bg-teal/10'}`}>
+                        {u.teacher_approved ? 'Revoke' : 'Approve'}
+                      </button>}
                       <button onClick={() => toggleUserRole(u.id, u.role)} disabled={u.id === currentUserId}
                         className="text-xs border border-white/10 text-muted-board hover:text-gold rounded-lg px-2.5 py-1 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                         {u.role === 'admin' ? 'Make Pupil' : 'Make Admin'}
@@ -195,6 +201,7 @@ export function UsersTab({
                   <p className="font-semibold text-chalk text-lg">{selectedUser.full_name}</p>
                   <p className="text-sm text-muted-board">Form {selectedUser.grade} &middot; {selectedUser.role}</p>
                   {selectedUser.school && <p className="text-xs text-muted-board/70">{selectedUser.school}</p>}
+                  {selectedUser.role === 'teacher' && <p className={`text-xs ${selectedUser.teacher_approved ? 'text-teal' : 'text-gold'}`}>{selectedUser.teacher_approved ? 'Approved teacher' : 'Pending approval'}</p>}
                   <p className="text-xs text-muted-board/70">Joined {new Date(selectedUser.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
               </div>
@@ -278,6 +285,12 @@ export function UsersTab({
               >
                 {selectedUser.role === 'admin' ? 'Demote to Pupil' : 'Promote to Admin'}
               </button>
+              {selectedUser.role === 'teacher' && <button
+                onClick={() => setTeacherApproval(selectedUser.id, !selectedUser.teacher_approved)}
+                className={`w-full text-sm border rounded-lg py-2 transition-colors ${selectedUser.teacher_approved ? 'border-rust/40 text-rust hover:bg-rust/10' : 'border-teal/40 text-teal hover:bg-teal/10'}`}
+              >
+                {selectedUser.teacher_approved ? 'Revoke teacher approval' : 'Approve teacher account'}
+              </button>}
             </div>
           </div>
         </div>

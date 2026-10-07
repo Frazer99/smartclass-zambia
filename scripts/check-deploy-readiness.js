@@ -27,15 +27,12 @@ console.log('\nSmartClass Zambia — deployment readiness check\n');
 // 1. Frontend env vars
 console.log('Frontend environment (.env):');
 const envPath = path.join(root, '.env');
-if (!fs.existsSync(envPath)) {
-  fail('.env is missing — copy .env.example and fill in your Supabase project values.');
-} else {
-  const env = fs.readFileSync(envPath, 'utf8');
-  ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'].forEach((key) => {
-    if (new RegExp(`^${key}=.+$`, 'm').test(env)) ok(`${key} is set`);
-    else fail(`${key} is missing from .env`);
-  });
-}
+const env = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'].forEach((key) => {
+  const fileValue = new RegExp(`^${key}=.+$`, 'm').test(env);
+  if (fileValue || process.env[key]) ok(`${key} is set`);
+  else fail(`${key} is missing from .env or the environment`);
+});
 
 // 2. Migrations are present and in a sane chronological order
 console.log('\nDatabase migrations:');

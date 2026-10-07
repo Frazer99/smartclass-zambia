@@ -1056,6 +1056,14 @@ export default function AdminPage() {
     toast.success(`Role set to ${newRole}.`); fetchUsers();
   };
 
+  const setTeacherApproval = async (userId: string, approved: boolean) => {
+    const { error } = await supabase.from('profiles').update({ teacher_approved: approved }).eq('id', userId).eq('role', 'teacher');
+    if (error) { toast.error('Failed to update teacher approval.'); return; }
+    toast.success(approved ? 'Teacher approved.' : 'Teacher approval revoked.');
+    await fetchUsers();
+    if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, teacher_approved: approved });
+  };
+
   const createManagedUser = async (input: { email: string; password: string; fullName: string; role: 'admin' | 'teacher'; school: string; grade: number }) => {
     const { error } = await supabase.functions.invoke('manage-admin-users', {
       body: { action: 'create', ...input },
@@ -1232,6 +1240,7 @@ export default function AdminPage() {
           users={users} userSearch={userSearch} setUserSearch={setUserSearch}
           userGradeFilter={userGradeFilter} setUserGradeFilter={setUserGradeFilter}
           toggleUserRole={toggleUserRole} currentUserId={profile?.id}
+          setTeacherApproval={setTeacherApproval}
           createManagedUser={createManagedUser} deleteManagedUser={deleteManagedUser}
           selectedUser={selectedUser} setSelectedUser={setSelectedUser}
           openUserDetail={openUserDetail} userProgress={userProgress} userSessions={userSessions} refreshUsers={fetchUsers}

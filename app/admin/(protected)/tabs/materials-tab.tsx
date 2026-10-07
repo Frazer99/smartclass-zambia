@@ -61,7 +61,7 @@ export function MaterialsTab({
           <h2 className="font-display text-lg font-semibold text-chalk">Curriculum Sync</h2>
         </div>
         <p className="text-muted-board text-sm mb-4">
-          Sync from the Ministry of Education (Directorate of Curriculum Development) and ECZ. Past papers are ECZ documents, uploaded manually below when a direct ECZ system integration isn't available. This ensures the AI teacher teaches from approved Zambian curriculum materials first.
+          Sync from the Ministry of Education (Directorate of Curriculum Development) and ECZ. Past papers are ECZ documents, uploaded manually below when a direct ECZ system integration isn&apos;t available. This ensures the AI teacher teaches from approved Zambian curriculum materials first.
         </p>
         <div className="flex flex-wrap gap-3">
           <button onClick={() => handleSync('moe')} disabled={syncing !== null}
@@ -94,8 +94,8 @@ export function MaterialsTab({
         </div>
         <p className="text-muted-board text-sm mb-4">
           Generates real pgvector embeddings for any material, search-index entry, or past-paper question that
-          doesn't have one yet, so Mr. Chomba can find conceptually related content even when a pupil's wording
-          doesn't share keywords with the source material. New materials added above are embedded automatically —
+          doesn&apos;t have one yet, so Mr. Chomba can find conceptually related content even when a pupil&apos;s wording
+          doesn&apos;t share keywords with the source material. New materials added above are embedded automatically —
           this backfills anything created before embeddings existed, or before an OpenAI API key was configured.
           Requires <code className="text-gold">OPENAI_API_KEY</code> to be set as an Edge Function secret.
         </p>

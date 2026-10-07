@@ -148,7 +148,7 @@ export function AnalyticsTab({
           {aiEvalRuns.length === 0 ? (
             <p className="text-sm text-muted-board">
               No evaluation runs yet. Run <code className="text-gold">npm run eval:ai</code> from a machine with
-              network access to your Supabase project and OpenAI to test Mr. Chomba's answer accuracy, teaching
+              network access to your Supabase project and OpenAI to test Mr. Chomba&apos;s answer accuracy, teaching
               quality, and curriculum alignment against real curriculum test cases — results will show up here.
             </p>
           ) : (

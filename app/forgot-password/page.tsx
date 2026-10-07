@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
               <MailCheck className="h-10 w-10 text-teal mx-auto mb-3" />
               <h2 className="font-display text-xl font-semibold text-ink mb-1">Check your email</h2>
               <p className="text-sm text-ink/60">
-                If an account exists for <strong>{email}</strong>, a password reset link is on its way. It'll take
+                If an account exists for <strong>{email}</strong>, a password reset link is on its way. It&apos;ll take
                 you to a page where you can set a new password.
               </p>
             </div>

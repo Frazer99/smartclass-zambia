@@ -50,6 +50,16 @@ Deno.serve(async (req: Request) => {
 
     const isAdmin = profile?.role === "admin";
     const isApprovedTeacher = profile?.role === "teacher" && profile?.teacher_approved === true;
+    const materialId = path.replace("/", "");
+    let canManageOwnMaterial = false;
+    if (!isAdmin && isApprovedTeacher && (method === "PUT" || method === "DELETE") && materialId) {
+      const { data: ownedMaterial } = await supabase
+        .from("content_materials")
+        .select("uploaded_by")
+        .eq("id", materialId)
+        .maybeSingle();
+      canManageOwnMaterial = ownedMaterial?.uploaded_by === userData.user.id;
+    }
 
     // GET / — list all content materials (available to all authenticated users)
     if (method === "GET" && (path === "" || path === "/")) {
@@ -66,7 +76,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Teachers may create scoped study materials; only admins may edit/delete.
-    if (!isAdmin && !(isApprovedTeacher && method === "POST")) {
+    if (!isAdmin && !((isApprovedTeacher && method === "POST") || canManageOwnMaterial)) {
       return new Response(JSON.stringify({ error: "Admin access required for this operation" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -129,6 +139,7 @@ Deno.serve(async (req: Request) => {
           grade: grade || null,
           source_reference: source_reference || null,
           content_summary: content_summary || null,
+          uploaded_by: userData.user.id,
           status: "approved",
         })
         .select()
@@ -153,7 +164,7 @@ Deno.serve(async (req: Request) => {
 
     // PUT /:id — update a content material
     if (method === "PUT") {
-      const id = path.replace("/", "");
+      const id = materialId;
       if (!id) {
         return new Response(JSON.stringify({ error: "Material ID required" }), {
           status: 400,
@@ -209,7 +220,7 @@ Deno.serve(async (req: Request) => {
 
     // DELETE /:id — delete a content material
     if (method === "DELETE") {
-      const id = path.replace("/", "");
+      const id = materialId;
       if (!id) {
         return new Response(JSON.stringify({ error: "Material ID required" }), {
           status: 400,

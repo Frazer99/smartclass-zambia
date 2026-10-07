@@ -108,7 +108,7 @@ export default function AdminLoginPage() {
 
           {user && profile && profile.role !== 'admin' && (
             <div className="mb-5 rounded-lg border border-rust/30 bg-rust/10 px-3 py-2.5 text-xs text-chalk">
-              You're currently signed in as <strong>{profile.full_name}</strong> (pupil account).
+              You&apos;re currently signed in as <strong>{profile.full_name}</strong> (pupil account).
               Signing in below with an admin account will switch sessions — or{' '}
               <Link href="/dashboard" className="text-gold hover:underline">
                 go back to the pupil app

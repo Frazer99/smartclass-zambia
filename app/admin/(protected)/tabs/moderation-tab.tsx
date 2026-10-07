@@ -32,7 +32,7 @@ export function ModerationTab({ flags, loading, onMarkReviewed }: {
           <TriangleAlert className="h-5 w-5 text-rust shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-rust">{selfHarmUnreviewed.length} self-harm-related {selfHarmUnreviewed.length === 1 ? 'flag needs' : 'flags need'} review</p>
-            <p className="text-xs text-muted-board mt-1">Follow up with the pupil through your school safeguarding process. The pupil was directed to a trusted adult and Zambia's free 116 Child Helpline.</p>
+            <p className="text-xs text-muted-board mt-1">Follow up with the pupil through your school safeguarding process. The pupil was directed to a trusted adult and Zambia&apos;s free 116 Child Helpline.</p>
           </div>
         </div>
       )}
