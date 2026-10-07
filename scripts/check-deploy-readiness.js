@@ -33,6 +33,9 @@ const env = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
   if (fileValue || process.env[key]) ok(`${key} is set`);
   else fail(`${key} is missing from .env or the environment`);
 });
+if (/^NEXT_PUBLIC__SUPABASE_ANON_KEY=/m.test(env) && !/^NEXT_PUBLIC_SUPABASE_ANON_KEY=/m.test(env)) {
+  fail('Found NEXT_PUBLIC__SUPABASE_ANON_KEY with a double underscore; rename it to NEXT_PUBLIC_SUPABASE_ANON_KEY');
+}
 
 // 2. Migrations are present and in a sane chronological order
 console.log('\nDatabase migrations:');

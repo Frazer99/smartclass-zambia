@@ -192,8 +192,13 @@ export default function AdminPage() {
 
   const checkAdmin = async () => {
     if (!profile) return;
-    const { data } = await supabase.from('profiles').select('role').eq('id', profile.id).maybeSingle();
-    if (data?.role !== 'admin') {
+    const { data: rpcRole, error: rpcError } = await supabase.rpc('current_user_role');
+    let role = rpcError ? null : rpcRole;
+    if (rpcError) {
+      const { data } = await supabase.from('profiles').select('role').eq('id', profile.id).maybeSingle();
+      role = data?.role ?? null;
+    }
+    if (role !== 'admin') {
       toast.error('Admin access required.');
       router.push('/dashboard');
       return;
