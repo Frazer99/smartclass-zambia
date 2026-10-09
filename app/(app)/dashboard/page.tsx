@@ -27,6 +27,13 @@ import {
   CalendarClock,
 } from 'lucide-react';
 
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Calculator,
   FlaskConical,
@@ -127,6 +134,10 @@ export default function DashboardPage() {
         supabase.from('exam_dates').select('subject_id, exam_date').eq('student_id', profile.id),
         supabase.from('lessons').select('id, topic_id, title, difficulty, display_order').order('display_order'),
     ]);
+
+      if (examDatesRes.error) {
+        console.error('Exam dates request failed:', examDatesRes.error);
+      }
 
     const practiceAttempts: RecentAttempt[] = (attemptsRes.data || [])
       .filter((a: any) => a.question?.topic_id)
@@ -571,7 +582,10 @@ function ExamCountdown({
 
   const selectedSubject = subjects.find((subject) => subject.id === subjectId);
   const daysRemaining = examDate
-    ? Math.ceil((new Date(`${examDate}T23:59:59`).getTime() - today.getTime()) / 86_400_000)
+    ? Math.round((
+      new Date(`${examDate}T12:00:00`).getTime()
+      - new Date(`${getLocalDateString(today)}T12:00:00`).getTime()
+    ) / 86_400_000)
     : null;
 
   const saveExamDate = async () => {
@@ -583,7 +597,8 @@ function ExamCountdown({
     );
     setSaving(false);
     if (error) {
-      toast.error('The exam date could not be saved.');
+      console.error('Exam date save failed:', error);
+      toast.error(`The exam date could not be saved: ${error.message}`);
       return;
     }
     onSaved(subjectId, examDate);
@@ -619,7 +634,7 @@ function ExamCountdown({
         <input
           type="date"
           value={examDate}
-          min={new Date().toISOString().slice(0, 10)}
+          min={getLocalDateString()}
           onChange={(event) => setExamDate(event.target.value)}
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-chalk focus:outline-none focus:ring-1 focus:ring-gold"
           aria-label="Exam date"
