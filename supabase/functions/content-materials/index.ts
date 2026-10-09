@@ -63,11 +63,12 @@ Deno.serve(async (req: Request) => {
 
     // GET / — list all content materials (available to all authenticated users)
     if (method === "GET" && (path === "" || path === "/")) {
-      await supabase.from("content_materials").update({ status: "approved" }).eq("status", "pending");
-      const { data, error } = await supabase
+      let query = supabase
         .from("content_materials")
         .select("*, subject:subjects(name, code, color)")
         .order("uploaded_at", { ascending: false });
+      if (!isAdmin) query = query.in("status", ["approved", "ingested"]).eq("needs_review", false);
+      const { data, error } = await query;
 
       if (error) throw error;
       return new Response(JSON.stringify({ data }), {
@@ -178,7 +179,12 @@ Deno.serve(async (req: Request) => {
       for (const field of allowedFields) {
         if (body[field] !== undefined) updates[field] = body[field];
       }
-      if (updates.status === "pending") updates.status = "approved";
+      if (updates.status === "approved") {
+        if (!isAdmin) return new Response(JSON.stringify({ error: "Only an administrator can approve ingested material" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        updates.needs_review = false;
+        updates.reviewed_by = userData.user.id;
+        updates.reviewed_at = new Date().toISOString();
+      }
 
       if (updates.material_type === "video" || updates.topic_id !== undefined || updates.subject_id !== undefined || updates.grade !== undefined) {
         const { data: existing } = await supabase.from("content_materials").select("material_type, topic_id, subject_id, grade").eq("id", id).maybeSingle();

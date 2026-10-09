@@ -40,6 +40,9 @@ type ParsedQuestion = {
   answer_key: string;
   explanation: string | null;
   marks: number;
+  source_page?: number | null;
+  needs_review?: boolean;
+  ocr_confidence?: number | null;
 };
 
 type ParsedPaperDetails = {
@@ -228,9 +231,14 @@ function syllabusTopics(text: string): SyllabusTopic[] {
 }
 
 function parsePastPaperQuestions(text: string): ParsedQuestion[] {
-  const lines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+  let page = 1;
+  const linesWithPages = text.split(/\r?\n/).flatMap((line) => line.split("\f").map((part, index) => {
+    if (index > 0) page += 1;
+    return { line: part.replace(/\s+/g, " ").trim(), page };
+  })).filter((item) => item.line);
+  const lines = linesWithPages.map((item) => item.line);
   const starts = lines
-    .map((line, index) => ({ line, index, match: line.match(/^(\d{1,3})[.)]\s+(.*)$/) }))
+    .map((line, index) => ({ line, index, page: linesWithPages[index].page, match: line.match(/^(\d{1,3})[.)]\s+(.*)$/) }))
     .filter((item) => item.match);
   const questions: ParsedQuestion[] = [];
 
@@ -256,6 +264,7 @@ function parsePastPaperQuestions(text: string): ParsedQuestion[] {
       answer_key: "",
       explanation: null,
       marks: marksMatch ? Number(marksMatch[1]) : 1,
+      source_page: current.page,
     });
   }
 
@@ -342,6 +351,8 @@ Deno.serve(async (req: Request) => {
 
     const pdfBytes = new Uint8Array(await file.arrayBuffer());
     const mimeType = file.type || (body.file_type === "image" ? "image/png" : "application/pdf");
+    let extractionMethod = body.extracted_text?.trim() ? "provided" : body.file_type === "image" ? "ocr" : "native_pdf";
+    let usedOcr = body.file_type === "image";
     let extractedText = body.extracted_text?.trim() || (body.file_type === "image"
       ? await extractImageText(pdfBytes, mimeType)
       : await extractSelectableText(pdfBytes));
@@ -349,6 +360,8 @@ Deno.serve(async (req: Request) => {
       extractedText = decodeEncodedPdfText(extractedText);
     } else if (body.force_ocr || !hasUsableExtractedText(extractedText)) {
       extractedText = await extractScannedPdfText(pdfBytes);
+      extractionMethod = "ocr";
+      usedOcr = true;
     }
 
     let answerText = body.answer_extracted_text?.trim() || "";
@@ -366,7 +379,10 @@ Deno.serve(async (req: Request) => {
       topic_id: body.topic_id || null,
       extracted_text: extractedText,
       content_summary: summary,
-      status: "ingested",
+      status: usedOcr ? "pending" : "approved",
+      ingestion_method: extractionMethod,
+      ingestion_confidence: usedOcr ? null : 0.98,
+      needs_review: usedOcr,
       ingestion_error: null,
     }).eq("id", body.material_id);
     if (materialError) throw materialError;
@@ -460,6 +476,8 @@ Deno.serve(async (req: Request) => {
         const { error } = await adminClient.from("past_paper_questions").insert({
           past_paper_id: createdPastPaperId,
           ...question,
+          needs_review: usedOcr,
+          ocr_confidence: usedOcr ? null : 0.98,
         });
         if (!error) questionsCreated++;
       }
@@ -551,7 +569,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return response({ success: true, extracted_characters: extractedText.length, embedding_created: Boolean(embedding), topics_created: topicsCreated, questions_created: questionsCreated, past_paper_id: createdPastPaperId });
+    return response({ success: true, review_required: usedOcr, extracted_characters: extractedText.length, embedding_created: Boolean(embedding), topics_created: topicsCreated, questions_created: questionsCreated, past_paper_id: createdPastPaperId });
   } catch (error) {
     console.error("Material ingestion error:", error);
     const message = error instanceof Error ? error.message : "Material ingestion failed";
@@ -562,7 +580,7 @@ Deno.serve(async (req: Request) => {
       if (body.material_id && supabaseUrl && serviceRoleKey) {
         await createClient(supabaseUrl, serviceRoleKey)
           .from("content_materials")
-          .update({ storage_path: body.storage_path || null, status: "approved", ingestion_error: message })
+          .update({ storage_path: body.storage_path || null, status: "pending", needs_review: true, ingestion_error: message })
           .eq("id", body.material_id);
       }
     } catch {

@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase, PastPaper, PastPaperQuestion, Subject } from '@/lib/supabase-client';
 import { useAuth } from '@/components/auth-provider';
 import { TeacherAvatar, TeacherAvatarState } from '@/components/teacher/TeacherAvatar';
+import { MathText } from '@/components/paper/MathText';
 import { ClassroomScene } from '@/components/lesson/classroom-scene';
 import { TeachingMode, loadTeachingMode, saveTeachingMode } from '@/lib/teachingMode';
 import { readTutorResponse } from '@/lib/ai-teacher-stream';
@@ -577,7 +578,7 @@ function PastPaperRunInner() {
 
       <div className="card-board p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
-          <p className="font-hand text-xl text-chalk leading-snug">{question.question_text}</p>
+          <MathText className="font-hand text-xl text-chalk leading-snug">{question.question_text}</MathText>
           <span className="shrink-0 text-xs font-mono-sc text-muted-board">{question.marks} mark{question.marks === 1 ? '' : 's'}</span>
         </div>
 
@@ -602,7 +603,7 @@ function PastPaperRunInner() {
                           : 'border-white/15 text-chalk hover:border-white/30'
                   }`}
                 >
-                  {opt}
+                  <MathText>{opt}</MathText>
                 </button>
               );
             })}
@@ -642,13 +643,13 @@ function PastPaperRunInner() {
             </div>
             {question.explanation && (
               <p className={mode === 'voice' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>
-                {question.explanation}
+                <MathText>{question.explanation}</MathText>
               </p>
             )}
             {aiSolution && (
               <div className="pt-2">
                 <h4 className="text-sm font-semibold text-chalk mb-1">AI teacher explanation</h4>
-                <p className={mode === 'voice' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>{aiSolution}</p>
+                <MathText className={mode === 'voice' ? 'font-hand text-lg text-chalk leading-snug' : 'text-sm text-chalk leading-relaxed'}>{aiSolution}</MathText>
               </div>
             )}
             <button

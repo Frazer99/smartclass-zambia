@@ -78,7 +78,7 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
   }
   if (weakPageNumbers.length === 0) {
     onProgress?.(100);
-    return cleanExtractedText(selectablePages.join('\n'));
+    return cleanExtractedText(selectablePages.join('\n\f\n'));
   }
 
   const { createWorker } = await loadTesseract();
@@ -110,7 +110,7 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
       canvas.height = 1;
       onProgress?.(30 + Math.round((weakPageNumbers.indexOf(pageNumber) + 1) / weakPageNumbers.length * 70));
     }
-    return cleanExtractedText(extractedPages.join('\n')) || null;
+    return cleanExtractedText(extractedPages.join('\n\f\n')) || null;
   } finally {
     await worker.terminate();
   }
