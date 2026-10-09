@@ -36,6 +36,17 @@ export type Announcement = {
   is_active: boolean;
 };
 
+export type StudentNotification = {
+  id: string;
+  subject_id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  notification_date: string;
+  read_at: string | null;
+  created_at: string;
+};
+
 export type Subject = {
   id: string;
   name: string;
