@@ -14,6 +14,7 @@ ALTER TABLE public.past_paper_questions
   ADD COLUMN IF NOT EXISTS needs_review boolean NOT NULL DEFAULT false;
 
 DROP POLICY IF EXISTS "read_content_materials" ON public.content_materials;
+DROP POLICY IF EXISTS "read_approved_content_materials" ON public.content_materials;
 CREATE POLICY "read_approved_content_materials" ON public.content_materials
   FOR SELECT TO anon, authenticated
   USING (status IN ('approved', 'ingested') AND needs_review = false);
