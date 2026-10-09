@@ -35,6 +35,19 @@ Deno.serve(async (req: Request) => {
     if (!payment) return json({ error: "Payment not found" }, 404);
     if (!payment.subject_id) return json({ error: "This payment has no subject. Contact support before retrying." }, 409);
     if (payment.status === "completed") return json({ paid: true, alreadyProcessed: true });
+    const { data: claim, error: claimError } = await supabase
+      .from("payments")
+      .update({ status: "processing" })
+      .eq("id", payment.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+    if (claimError) throw claimError;
+    if (!claim) {
+      const { data: currentPayment } = await supabase.from("payments").select("status").eq("id", payment.id).maybeSingle();
+      if (currentPayment?.status === "completed") return json({ paid: true, alreadyProcessed: true });
+      if (currentPayment?.status !== "processing") return json({ paid: false, pending: true, reason: "Payment verification is already in progress." }, 202);
+    }
 
     let paid = false;
     let providerRef: string | null = null;

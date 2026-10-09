@@ -26,9 +26,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const authorization = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const cronSecret = Deno.env.get("DIGEST_CRON_SECRET");
+    if (!serviceRoleKey || (authorization !== serviceRoleKey && (!cronSecret || req.headers.get("X-Cron-Secret") !== cronSecret))) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 

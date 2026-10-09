@@ -26,6 +26,7 @@ export default function PracticePage() {
   const [selected, setSelected] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [correctAnswer, setCorrectAnswer] = useState('');
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(0);
   const [sessionResults, setSessionResults] = useState<PracticeResult[]>([]);
@@ -39,7 +40,7 @@ export default function PracticePage() {
   const fetchQuestions = async () => {
     const [topicRes, qRes] = await Promise.all([
       supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).not('source_material_id', 'is', null).maybeSingle(),
-      supabase.from('practice_questions').select('*').eq('topic_id', topicId),
+      supabase.from('practice_questions_public').select('*').eq('topic_id', topicId),
     ]);
     setTopic(topicRes.data as Topic);
     if (topicRes.data?.subject) setSubject(topicRes.data.subject as Subject);
@@ -50,66 +51,23 @@ export default function PracticePage() {
   const handleSubmit = async () => {
     if (!selected.trim() || !profile) return;
     const q = questions[currentIndex];
-    const correct = checkAnswer(selected, q.answer_key);
+    const { data: result, error } = await supabase.rpc('submit_practice_answer', {
+      p_question_id: q.id,
+      p_submitted_answer: selected,
+    });
+    if (error || !result?.[0]) {
+      toast.error(error?.message || 'Could not submit your answer.');
+      return;
+    }
+    const submission = result[0];
+    const correct = Boolean(submission.is_correct);
     setIsCorrect(correct);
+    setCorrectAnswer(submission.correct_answer || '');
     setSubmitted(true);
     setAnswered(answered + 1);
     if (correct) setScore(score + 1);
     setSessionResults((results) => [...results, { questionId: q.id, isCorrect: correct }]);
 
-    await supabase.from('practice_attempts').insert({
-      user_id: profile.id,
-      question_id: q.id,
-      submitted_answer: selected,
-      is_correct: correct,
-    });
-    await updateProgress(correct);
-    await logStudentInteraction(correct, q);
-  };
-
-  const logStudentInteraction = async (correct: boolean, q: PracticeQuestion) => {
-    if (!profile || !topic) return;
-    try {
-      const detectedMistake = correct ? null : await detectAnswerMistake(q.question_text, q.answer_key, selected);
-      await supabase.from('student_interactions').insert({
-        student_id: profile.id, lesson_id: null, subject_id: (topic as any).subject_id || null,
-        topic_id: topic.id, interaction_type: 'practice_question', question: q.question_text,
-        student_response: selected, ai_response: q.explanation || null, correct,
-        difficulty: q.difficulty || null, detected_mistake: detectedMistake,
-      });
-      await supabase.rpc('recompute_topic_mastery', { p_student_id: profile.id, p_topic_id: topic.id });
-    } catch (error) {
-      console.error('Failed to log student interaction (non-fatal):', error);
-    }
-  };
-
-  const detectAnswerMistake = async (questionText: string, correctAnswer: string, submittedAnswer: string): Promise<string | null> => {
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return null;
-      const response = await fetch(`${supabaseUrl}/functions/v1/detect-answer-mistake`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ questionText, correctAnswer, submittedAnswer, topicName: topic?.name, subjectName: subject?.name }),
-      });
-      if (!response.ok) return null;
-      return (await response.json()).mistake || null;
-    } catch {
-      return null;
-    }
-  };
-
-  const updateProgress = async (correct: boolean) => {
-    if (!profile || !topic) return;
-    const { data: ex } = await supabase.from('progress_records').select('*').eq('user_id', profile.id).eq('topic_id', topic.id).maybeSingle();
-    const total = (ex?.total_attempts || 0) + 1;
-    const corr = (ex?.correct_attempts || 0) + (correct ? 1 : 0);
-    const mastery = Math.round((corr / total) * 100);
-    if (ex) {
-      await supabase.from('progress_records').update({ total_attempts: total, correct_attempts: corr, mastery_percentage: mastery, last_updated: new Date().toISOString() }).eq('id', ex.id);
-    } else {
-      await supabase.from('progress_records').insert({ user_id: profile.id, topic_id: topic.id, total_attempts: total, correct_attempts: corr, mastery_percentage: mastery });
-    }
   };
 
   const handleNext = () => {
@@ -247,7 +205,7 @@ export default function PracticePage() {
                 </p>
                 {!isCorrect && (
                   <p className="text-xs text-ink/70 mt-0.5">
-                    Your answer: {selected} · Correct: {q.answer_key}
+                    Your answer: {selected} · Correct: {correctAnswer}
                   </p>
                 )}
               </div>
@@ -273,9 +231,4 @@ export default function PracticePage() {
       </div>
     </div>
   );
-}
-
-function checkAnswer(submitted: string, key: string): boolean {
-  const n = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
-  return n(submitted) === n(key);
 }

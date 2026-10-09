@@ -44,6 +44,8 @@ Deno.serve(async (req: Request) => {
     if (!subject || !profile?.grade || !subject.grades.includes(profile.grade)) {
       return json({ error: "That subject is not available for this pupil." }, 400);
     }
+    const { data: pendingPayment } = await supabase.from("payments").select("id").eq("user_id", userId).eq("subject_id", subjectId).eq("status", "pending").maybeSingle();
+    if (pendingPayment) return json({ error: "A payment for this subject is already pending. Complete it before starting another." }, 409);
     const { data: setting } = await supabase.from("platform_settings").select("value").eq("key", "subscription_price_zmw").maybeSingle();
     const amount = Number(setting?.value ?? 50);
     if (!Number.isFinite(amount) || amount <= 0) return json({ error: "Invalid subscription price" }, 500);

@@ -28,7 +28,7 @@ export default function TopicTestPage() {
     (async () => {
       const [topicRes, questionRes] = await Promise.all([
         supabase.from('topics').select('*').eq('id', topicId).not('source_material_id', 'is', null).maybeSingle(),
-        supabase.from('practice_questions').select('*').eq('topic_id', topicId),
+        supabase.from('practice_questions_public').select('*').eq('topic_id', topicId),
       ]);
       setTopic(topicRes.data as Topic | null);
       const available = (questionRes.data || []) as PracticeQuestion[];
@@ -38,12 +38,23 @@ export default function TopicTestPage() {
   }, [profile, topicId]);
 
   const markTypedAnswers = async () => {
-    const result = questions.map((question) => {
+    const result = [] as Mark[];
+    for (const question of questions) {
       const answer = answers[question.id] || '';
-      const correct = normalise(answer) === normalise(question.answer_key);
-      return { question: question.question_text, awarded: correct ? 1 : 0, maximum: 1, feedback: correct ? 'Correct.' : `Correct answer: ${question.answer_key}` };
-    });
-    await saveAttempts();
+      if (!answer.trim()) continue;
+      const { data, error } = await supabase.rpc('submit_practice_answer', {
+        p_question_id: question.id,
+        p_submitted_answer: answer,
+      });
+      if (error || !data?.[0]) throw new Error(error?.message || 'Could not submit the test.');
+      const submission = data[0];
+      result.push({
+        question: question.question_text,
+        awarded: submission.is_correct ? 1 : 0,
+        maximum: 1,
+        feedback: submission.is_correct ? 'Correct.' : `Correct answer: ${submission.correct_answer}`,
+      });
+    }
     await saveSubmission('online', result, Object.values(answers).join('\n'));
     setMarks(result);
   };
@@ -61,17 +72,6 @@ export default function TopicTestPage() {
     });
   };
 
-  const saveAttempts = async () => {
-    if (!profile) return;
-    const rows = questions.filter((question) => answers[question.id]?.trim()).map((question) => ({
-      user_id: profile.id,
-      question_id: question.id,
-      submitted_answer: answers[question.id],
-      is_correct: normalise(answers[question.id]) === normalise(question.answer_key),
-    }));
-    if (rows.length) await supabase.from('practice_attempts').insert(rows);
-  };
-
   const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -85,7 +85,7 @@ export default function TopicTestPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/grade-uploaded-test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ topicId, topicName: topic?.name, questions: questions.map((q) => ({ question: q.question_text, answer: q.answer_key })), submittedText: text }),
+        body: JSON.stringify({ topicId, topicName: topic?.name, questionIds: questions.map((q) => q.id), submittedText: text }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'The uploaded answers could not be marked.');
