@@ -116,6 +116,24 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
     throw new Error("No readable text was found in this PDF. Automatic OCR is unavailable because OPENAI_API_KEY is not configured for the ingest-material Edge Function.");
   }
 
+  const form = new FormData();
+  form.append("purpose", "user_data");
+  form.append("file", new File([pdfBytes], "scanned-material.pdf", { type: "application/pdf" }));
+  const uploadResponse = await fetch("https://api.openai.com/v1/files", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}` },
+    body: form,
+  });
+  if (!uploadResponse.ok) {
+    const details = await uploadResponse.text();
+    console.error("Scanned PDF upload failed:", details);
+    throw new Error(`The OCR service could not accept this PDF (HTTP ${uploadResponse.status}).`);
+  }
+
+  const uploadedFile = await uploadResponse.json();
+  const fileId = typeof uploadedFile?.id === "string" ? uploadedFile.id : "";
+  if (!fileId) throw new Error("The OCR service accepted the PDF but did not return a file ID.");
+
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -124,7 +142,6 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
     },
     body: JSON.stringify({
       model: Deno.env.get("OPENAI_OCR_MODEL") || "gpt-4o-mini",
-      temperature: 0,
       input: [{
         role: "user",
         content: [
@@ -132,11 +149,7 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
             type: "input_text",
             text: "Transcribe all readable text from this PDF exactly. Preserve page order, headings, question numbers, answer choices, marks, and line breaks. Return only the transcription, with no commentary.",
           },
-          {
-            type: "input_file",
-            filename: "scanned-material.pdf",
-            file_data: `data:application/pdf;base64,${base64Encode(pdfBytes)}`,
-          },
+          { type: "input_file", file_id: fileId },
         ],
       }],
     }),
