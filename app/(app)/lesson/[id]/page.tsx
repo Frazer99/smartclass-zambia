@@ -114,12 +114,25 @@ export default function LessonPage() {
       setChatMessages(sd.transcript as ChatMessage[]);
     } else {
       const firstName = profile?.full_name.split(' ')[0] || 'there';
-      const msg: ChatMessage = {
-        role: 'teacher',
-        content: `Hello ${firstName}! Welcome to today's lesson on ${ld.title}. Let us get started!`,
-        timestamp: Date.now(),
-      };
-      addTeacher(msg.content, false);
+      const firstStep = ld.content?.steps?.[0];
+      const opening = [
+        `Hello ${firstName}! Welcome to today's lesson on ${ld.title}.`,
+        ld.content?.intro,
+        ld.content?.objectives?.length ? `Today we will learn to ${ld.content.objectives.join('; ')}.` : '',
+        firstStep ? `Let us begin with ${firstStep.title}.\n\n${firstStep.body}` : '',
+      ].filter(Boolean).join('\n\n');
+
+      setPhase(firstStep ? 'steps' : 'intro');
+      setStepIndex(0);
+      addTeacher(opening, false);
+      if (firstStep) {
+        addToBoard({ type: 'heading', content: firstStep.title });
+        addToBoard({ type: 'body', content: firstStep.board });
+        setCheckpointPending(true);
+        window.setTimeout(() => {
+          addTeacher(`Before we continue, can you explain in your own words what ${firstStep.title} means?`, false);
+        }, 900);
+      }
     }
     setLoading(false);
   };
