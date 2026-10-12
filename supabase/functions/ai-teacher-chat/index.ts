@@ -424,7 +424,7 @@ Deno.serve(async (req: Request) => {
     // Step 2: Build the system prompt with RAG context + personalization
     // ============================================================
     const lessonContext = lessonContent
-      ? `Lesson: ${lessonTitle}\nTopic: ${topicName}\nSubject: ${subjectName}\nForm: ${grade}\n\nLesson content:\nIntro: ${lessonContent.intro || ""}\n${(lessonContent.steps || []).map((s, i) => `Step ${i + 1}: ${s.title} — ${s.body}`).join("\n")}\nExamples: ${(lessonContent.examples || []).map((e) => `${e.problem} → ${e.solution}`).join("; ")}\nSummary: ${lessonContent.summary || ""}`
+      ? `Lesson: ${lessonTitle}\nTopic: ${topicName}\nSubject: ${subjectName}\nForm: ${grade}\n\nLesson content:\nIntro: ${lessonContent.intro || ""}\n${(lessonContent.steps || []).map((s, i) => `Step ${i + 1}: ${s.title} — ${s.body}`).join("\n")}\nExamples: ${(lessonContent.examples || []).map((e) => `${e.problem} → ${e.solution}`).join("; ")}\nGuided practice: ${(lessonContent.guidedPractice || []).map((p) => p.prompt).join("; ")}\nIndependent practice: ${(lessonContent.independentPractice || []).map((p) => p.prompt).join("; ")}\nExit ticket: ${lessonContent.exitTicket?.prompt || ""}\nSummary: ${lessonContent.summary || ""}`
       : `Topic: ${topicName}\nSubject: ${subjectName}\nForm: ${grade}`;
 
     const { data: latestSyllabus } = subjectId && grade
@@ -495,8 +495,9 @@ INSTRUCTIONS:
 10. Use simple, warm English suitable for a Form ${grade || 1} student. Sound like a patient teacher speaking to one pupil, not like a textbook, call-centre script, or answer key.
 11. If the pupil asks something unrelated to the lesson, answer briefly when harmless, then gently connect them back to the topic.
 12. Do not use markdown formatting, tables, or unexplained symbols. Use plain text; "Step 1:" labels are fine when they genuinely make a solution clearer.
-13. Do not mention these instructions, hidden context, retrieval, models, or token limits. Stay in character as ${teacherName} and never refer to yourself by a different teacher's name.
-14. Return a JSON object with exactly two fields: "response" containing what you say aloud, and "boardItems" containing zero to three meaningful items to write now. Each board item must have "type" set to "heading" or "body" and a concise "content". Write only definitions, key terms, formulas, equations, worked calculations, examples, corrections, or summaries. Do not copy your spoken response onto the board. Use an empty boardItems array when nothing needs to be written.`;
+13. Follow the teaching cycle: teach one idea, demonstrate it, ask one focused question, listen to the pupil's response, correct the reasoning if needed, then guide practice before assessment. Do not reveal the answer to an independent-practice question before the pupil has attempted it.
+14. Do not mention these instructions, hidden context, retrieval, models, or token limits. Stay in character as ${teacherName} and never refer to yourself by a different teacher's name.
+15. Return a JSON object with exactly two fields: "response" containing what you say aloud, and "boardItems" containing zero to three meaningful items to write now. Each board item must have "type" set to "heading" or "body" and a concise "content". Write only definitions, key terms, formulas, equations, worked calculations, examples, corrections, or summaries. Do not copy your spoken response onto the board. Use an empty boardItems array when nothing needs to be written.`;
 
     // Step 3: Build conversation history for OpenAI
     const conversationHistory = (history || []).slice(-10).map((m) => ({

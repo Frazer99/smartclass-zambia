@@ -34,6 +34,7 @@ import { DEFAULT_TEACHER_VOICE, selectBrowserVoice, TeacherVoiceProfile, voicePr
 type BoardItem = { type: 'heading' | 'body'; content: string; done?: boolean };
 type ChatMessage = { role: 'teacher' | 'pupil'; content: string; timestamp: number };
 type ClassroomMode = 'classroom' | 'board' | 'text';
+type LessonPhase = 'intro' | 'steps' | 'examples' | 'guided_practice' | 'independent_practice' | 'assessment' | 'summary' | 'complete';
 
 export default function LessonPage() {
   const params = useParams();
@@ -47,8 +48,10 @@ export default function LessonPage() {
   const [content, setContent] = useState<LessonContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [stepIndex, setStepIndex] = useState(0);
-  const [phase, setPhase] = useState<'intro' | 'steps' | 'examples' | 'summary' | 'complete'>('intro');
+  const [phase, setPhase] = useState<LessonPhase>('intro');
   const [boardItems, setBoardItems] = useState<BoardItem[]>([]);
+  const [exampleIndex, setExampleIndex] = useState(0);
+  const [practiceIndex, setPracticeIndex] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [pupilInput, setPupilInput] = useState('');
   const { isSupported: sttSupported, isListening, interimTranscript, toggleListening } = useSpeechToText({
@@ -328,6 +331,7 @@ export default function LessonPage() {
 
   const handleSend = async () => {
     if (!pupilInput.trim() || !content) return;
+    const wasCheckpoint = checkpointPending;
     setCheckpointPending(false);
     const msg: ChatMessage = { role: 'pupil', content: pupilInput, timestamp: Date.now() };
     const updated = [...chatMessages, msg];
@@ -358,6 +362,7 @@ export default function LessonPage() {
           lessonContent: content,
           history: updated.slice(-10).map((m) => ({ role: m.role, content: m.content })),
           weakAreaReason: weakAreaReason || undefined,
+          isUnderstandingCheckResponse: wasCheckpoint,
         }),
       });
 
@@ -382,7 +387,7 @@ export default function LessonPage() {
     } catch (err) {
       setIsThinking(false);
       const fallback = generateFallbackResponse(pupilInput, content);
-      addTeacher(fallback);
+      addTeacher(fallback, false);
     }
   };
 
@@ -395,8 +400,20 @@ export default function LessonPage() {
     if (phase === 'intro') { setPhase('steps'); setStepIndex(0); showStep(0, content); }
     else if (phase === 'steps') {
       if (stepIndex < content.steps.length - 1) { const n = stepIndex + 1; setStepIndex(n); showStep(n, content); }
-      else { setPhase('examples'); showExamples(content); }
-    } else if (phase === 'examples') { setPhase('summary'); showSummary(content); }
+      else if (content.examples.length) { setPhase('examples'); setExampleIndex(0); showExample(0, content); }
+      else { beginPracticeOrAssessment(content); }
+    } else if (phase === 'examples') {
+      if (exampleIndex < content.examples.length - 1) { const next = exampleIndex + 1; setExampleIndex(next); showExample(next, content); }
+      else beginPracticeOrAssessment(content);
+    } else if (phase === 'guided_practice') {
+      const practice = content.guidedPractice || [];
+      if (practiceIndex < practice.length - 1) { const next = practiceIndex + 1; setPracticeIndex(next); showPractice('guided_practice', next, content); }
+      else { setPhase(content.independentPractice?.length ? 'independent_practice' : content.exitTicket ? 'assessment' : 'summary'); setPracticeIndex(0); beginIndependentOrAssessment(content); }
+    } else if (phase === 'independent_practice') {
+      const practice = content.independentPractice || [];
+      if (practiceIndex < practice.length - 1) { const next = practiceIndex + 1; setPracticeIndex(next); showPractice('independent_practice', next, content); }
+      else { setPhase(content.exitTicket ? 'assessment' : 'summary'); beginAssessmentOrSummary(content); }
+    } else if (phase === 'assessment') { setPhase('summary'); showSummary(content); }
     else if (phase === 'summary') completeLesson();
   };
 
@@ -404,7 +421,7 @@ export default function LessonPage() {
     if (!content) return;
     if (phase === 'steps' && stepIndex > 0) { const p = stepIndex - 1; setStepIndex(p); showStep(p, content); }
     else if (phase === 'examples') { setPhase('steps'); const i = content.steps.length - 1; setStepIndex(i); showStep(i, content); }
-    else if (phase === 'summary') { setPhase('examples'); showExamples(content); }
+    else if (phase === 'summary') { setPhase(content.exitTicket ? 'assessment' : 'examples'); content.exitTicket ? showExitTicket(content) : showExample(0, content); }
   };
 
   const showStep = (i: number, c: LessonContent) => {
@@ -418,13 +435,62 @@ export default function LessonPage() {
     }, 900);
   };
 
-  const showExamples = (c: LessonContent) => {
-    if (!c.examples.length) return;
-    const ex = c.examples[0];
-    addTeacher('Let us look at an example: ' + ex.problem, false);
+  const showExample = (i: number, c: LessonContent) => {
+    const ex = c.examples[i];
+    if (!ex) return;
+    addTeacher(`Let us look at example ${i + 1}. ${ex.problem}`, false);
     addToBoard({ type: 'heading', content: 'Example' });
     addToBoard({ type: 'body', content: ex.problem });
     setTimeout(() => { addTeacher('Here is the solution: ' + ex.solution, false); addToBoard({ type: 'body', content: ex.solution }); }, 1400);
+  };
+
+  const showPractice = (practicePhase: 'guided_practice' | 'independent_practice', i: number, c: LessonContent) => {
+    const item = (practicePhase === 'guided_practice' ? c.guidedPractice : c.independentPractice)?.[i];
+    if (!item) return;
+    const lead = practicePhase === 'guided_practice'
+      ? 'Let us solve this together. Start with the first step and I will guide you.'
+      : 'Now try this one independently. Show your working so I can see your reasoning.';
+    addTeacher(`${lead}\n\n${item.prompt}`, false);
+    addToBoard({ type: 'heading', content: practicePhase === 'guided_practice' ? 'Guided practice' : 'Your turn' });
+    addToBoard({ type: 'body', content: item.prompt });
+    setCheckpointPending(true);
+  };
+
+  const showExitTicket = (c: LessonContent) => {
+    if (!c.exitTicket) return;
+    addTeacher(`Before we finish, answer this exit question without looking back at the solution.\n\n${c.exitTicket.prompt}`, false);
+    addToBoard({ type: 'heading', content: 'Exit ticket' });
+    addToBoard({ type: 'body', content: c.exitTicket.prompt });
+    setCheckpointPending(true);
+  };
+
+  const beginPracticeOrAssessment = (c: LessonContent) => {
+    if (c.guidedPractice?.length) {
+      setPhase('guided_practice');
+      setPracticeIndex(0);
+      showPractice('guided_practice', 0, c);
+    } else if (c.independentPractice?.length) {
+      setPhase('independent_practice');
+      setPracticeIndex(0);
+      showPractice('independent_practice', 0, c);
+    } else if (c.exitTicket) {
+      setPhase('assessment');
+      showExitTicket(c);
+    } else {
+      setPhase('summary');
+      showSummary(c);
+    }
+  };
+
+  const beginIndependentOrAssessment = (c: LessonContent) => {
+    if (c.independentPractice?.length) showPractice('independent_practice', 0, c);
+    else if (c.exitTicket) showExitTicket(c);
+    else showSummary(c);
+  };
+
+  const beginAssessmentOrSummary = (c: LessonContent) => {
+    if (c.exitTicket) showExitTicket(c);
+    else showSummary(c);
   };
 
   const showSummary = (c: LessonContent) => {
@@ -639,7 +705,10 @@ export default function LessonPage() {
           <span className="text-xs text-muted-board font-mono-sc">
             {phase === 'intro' && 'Introduction'}
             {phase === 'steps' && `Step ${stepIndex + 1}/${content.steps.length}`}
-            {phase === 'examples' && 'Examples'}
+            {phase === 'examples' && `Example ${exampleIndex + 1}/${content.examples.length}`}
+            {phase === 'guided_practice' && `Guided practice ${practiceIndex + 1}/${content.guidedPractice?.length || 0}`}
+            {phase === 'independent_practice' && `Independent practice ${practiceIndex + 1}/${content.independentPractice?.length || 0}`}
+            {phase === 'assessment' && 'Exit ticket'}
             {phase === 'summary' && 'Summary'}
             {phase === 'complete' && 'Complete'}
           </span>

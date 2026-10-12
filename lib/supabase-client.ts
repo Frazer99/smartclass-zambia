@@ -113,7 +113,7 @@ export type LessonSession = {
   started_at: string;
   completed_at: string | null;
   transcript: any[];
-  lesson_phase?: 'intro' | 'steps' | 'examples' | 'summary' | 'complete';
+  lesson_phase?: 'intro' | 'steps' | 'examples' | 'guided_practice' | 'independent_practice' | 'assessment' | 'summary' | 'complete';
   lesson_step_index?: number;
   board_items?: { type: 'heading' | 'body' | 'formula' | 'step' | 'example'; content: string; done?: boolean }[];
   awaiting_understanding_check?: boolean;
