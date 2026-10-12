@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { supabase, PastPaper, PastPaperQuestion, Subject } from '@/lib/supabase-client';
+import { supabase, PastPaper, PastPaperQuestion, PastPaperRunState, Subject } from '@/lib/supabase-client';
 import { useAuth } from '@/components/auth-provider';
 import { TeacherAvatar, TeacherAvatarState } from '@/components/teacher/TeacherAvatar';
 import { MathText } from '@/components/paper/MathText';
@@ -10,7 +10,7 @@ import { ClassroomScene } from '@/components/lesson/classroom-scene';
 import { TeachingMode, loadTeachingMode, saveTeachingMode } from '@/lib/teachingMode';
 import { readTutorResponse } from '@/lib/ai-teacher-stream';
 import { DEFAULT_TEACHER_VOICE, selectBrowserVoice, TeacherVoiceProfile, voiceProfileForPersona } from '@/lib/teacherVoice';
-import { ArrowLeft, BookOpen, ChevronRight, CircleCheck as CheckCircle2, CircleX as XCircle, LayoutPanelTop, Loader as Loader2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronRight, CircleCheck as CheckCircle2, CircleX as XCircle, Clock, LayoutPanelTop, Loader as Loader2, MessageCircle, Pause } from 'lucide-react';
 
 type BoardItem = { type: 'heading' | 'body' | 'formula' | 'step' | 'example'; content: string };
 type ClassroomMode = 'classroom' | 'board' | 'text';
@@ -77,6 +77,11 @@ function PastPaperRunInner() {
   const [voiceProfile, setVoiceProfile] = useState<TeacherVoiceProfile>(DEFAULT_TEACHER_VOICE);
   const [awaitingUnderstandingCheck, setAwaitingUnderstandingCheck] = useState(false);
   const [boardItems, setBoardItems] = useState<BoardItem[]>([]);
+  const [plannedMinutes, setPlannedMinutes] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [completedAnswers, setCompletedAnswers] = useState<Record<string, { answer: string; is_correct: boolean }>>({});
+  const hydratedRef = useRef(false);
+  const elapsedRef = useRef(0);
 
   const addToBoard = useCallback((item: BoardItem) => {
     setWriting(true);
@@ -160,11 +165,48 @@ function PastPaperRunInner() {
 
   useEffect(() => {
     if (!question) return;
+    if (hydratedRef.current && boardItems.length > 0) return;
     setBoardItems([
       { type: 'heading', content: `Question ${question.question_number}` },
       { type: 'body', content: question.question_text },
     ]);
   }, [question?.id]);
+
+  useEffect(() => {
+    if (!question) return;
+    const saved = completedAnswers[question.id];
+    if (!saved) return;
+    if (question.question_type === 'multiple_choice') setSelected(saved.answer);
+    else setTextAnswer(saved.answer);
+    setSubmitted(true);
+    setIsCorrect(saved.is_correct);
+  }, [question?.id, completedAnswers]);
+
+  useEffect(() => {
+    if (!hydratedRef.current || isSingleMode) return;
+    void supabase.from('past_paper_transcripts').upsert({
+      student_id: profile?.id,
+      past_paper_id: paperId,
+      current_question_index: index,
+      planned_minutes: plannedMinutes,
+      elapsed_seconds: elapsedRef.current,
+      board_items: boardItems,
+      awaiting_understanding_check: awaitingUnderstandingCheck,
+      completed_answers: completedAnswers,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'student_id,past_paper_id' });
+  }, [index, boardItems, awaitingUnderstandingCheck, completedAnswers, plannedMinutes, paperId, profile?.id, isSingleMode]);
+
+  useEffect(() => {
+    if (!hydratedRef.current || isSingleMode) return;
+    const timer = window.setInterval(() => {
+      elapsedRef.current += 30;
+      setElapsedSeconds(elapsedRef.current);
+      void supabase.from('past_paper_transcripts').update({ elapsed_seconds: elapsedRef.current, updated_at: new Date().toISOString() })
+        .eq('student_id', profile?.id).eq('past_paper_id', paperId);
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [paperId, profile?.id, isSingleMode]);
 
   const saveChat = (msgs: ChatMessage[]) => {
     setChatMessages(msgs);
@@ -294,11 +336,21 @@ function PastPaperRunInner() {
     if (profile) {
       const { data: transcriptData } = await supabase
         .from('past_paper_transcripts')
-        .select('transcript')
+        .select('*')
         .eq('student_id', profile.id)
         .eq('past_paper_id', paperId)
         .maybeSingle();
       if (transcriptData?.transcript) setChatMessages(transcriptData.transcript as ChatMessage[]);
+      if (transcriptData) {
+        const saved = transcriptData as PastPaperRunState & { current_question_index?: number };
+        if (singleQuestionNumber === null && Number.isInteger(saved.current_question_index)) setIndex(saved.current_question_index || 0);
+        setPlannedMinutes(Number(saved.planned_minutes) || 0);
+        elapsedRef.current = Number(saved.elapsed_seconds) || 0;
+        setElapsedSeconds(elapsedRef.current);
+        setCompletedAnswers(saved.completed_answers || {});
+        setAwaitingUnderstandingCheck(Boolean(saved.awaiting_understanding_check));
+        setBoardItems((saved.board_items as BoardItem[] | undefined) || []);
+      }
     }
 
     const { data: qData } = await supabase
@@ -313,6 +365,8 @@ function PastPaperRunInner() {
       const i = list.findIndex((q) => q.question_number === singleQuestionNumber);
       setIndex(i >= 0 ? i : 0);
     }
+    if (!plannedMinutes && paperData?.duration_minutes) setPlannedMinutes(Number(paperData.duration_minutes));
+    hydratedRef.current = true;
     setLoading(false);
   }
 
@@ -364,6 +418,7 @@ function PastPaperRunInner() {
       });
       await logStudentInteraction(correct, answer);
     }
+    setCompletedAnswers((current) => ({ ...current, [question.id]: { answer, is_correct: correct } }));
 
     setWriting(true);
     setTimeout(() => setWriting(false), 500);
@@ -462,6 +517,22 @@ function PastPaperRunInner() {
     stopTeacherSpeech();
   }
 
+  async function pausePaper() {
+    await supabase.from('past_paper_transcripts').upsert({
+      student_id: profile?.id,
+      past_paper_id: paperId,
+      current_question_index: index,
+      planned_minutes: plannedMinutes,
+      elapsed_seconds: elapsedRef.current,
+      board_items: boardItems,
+      awaiting_understanding_check: awaitingUnderstandingCheck,
+      completed_answers: completedAnswers,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'student_id,past_paper_id' });
+    stopTeacherSpeech();
+    router.push(`/past-papers/${paperId}`);
+  }
+
   if (loading) {
     return <div className="flex h-72 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-gold" /></div>;
   }
@@ -491,11 +562,21 @@ function PastPaperRunInner() {
             <MessageCircle className="h-3.5 w-3.5" /> <span>Text tutor</span>
           </button>
         </div>
+        {!isSingleMode && (
+          <button onClick={() => void pausePaper()} className="flex items-center gap-1.5 rounded-lg border border-gold/40 px-3 py-2 text-xs text-gold hover:bg-gold/10">
+            <Pause className="h-3.5 w-3.5" /> Pause &amp; save
+          </button>
+        )}
       </div>
 
       <h1 className="font-display text-xl font-semibold text-chalk">
         {isSingleMode ? `Question ${question.question_number}` : `${paper.title} — Question ${index + 1} of ${questions.length}`}
       </h1>
+      {!isSingleMode && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-board">
+          <Clock className="h-3.5 w-3.5" /> Planned: {plannedMinutes ? `${plannedMinutes} minutes` : 'exam duration'} · Studied: {Math.floor(elapsedSeconds / 60)} minutes. You can pause and resume anytime.
+        </p>
+      )}
 
       {classroomMode === 'classroom' && (
         <ClassroomScene

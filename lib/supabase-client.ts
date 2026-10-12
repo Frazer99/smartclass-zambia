@@ -203,6 +203,15 @@ export type PastPaperQuestion = {
   topic_id: string | null;
 };
 
+export type PastPaperRunState = {
+  current_question_index?: number;
+  planned_minutes?: number;
+  elapsed_seconds?: number;
+  board_items?: { type: 'heading' | 'body' | 'formula' | 'step' | 'example'; content: string }[];
+  awaiting_understanding_check?: boolean;
+  completed_answers?: Record<string, { answer: string; is_correct: boolean }>;
+};
+
 export type PastPaperAttempt = {
   id: string;
   user_id: string;
