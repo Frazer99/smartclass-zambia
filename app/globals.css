@@ -242,14 +242,10 @@
 .classroom-board-status { color: hsl(41 76% 60%); }
 .classroom-board-content { padding-top: 0.9rem; color: #fff6d5; }
 .classroom-board-heading { color: hsl(41 76% 60%); font-family: 'Space Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; }
-.classroom-board-line { margin-top: 0.55rem; font-family: 'Patrick Hand', cursive; font-size: clamp(1.35rem, 3vw, 2rem); line-height: 1.05; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); }
-.classroom-board-empty { color: rgba(255, 247, 219, 0.5); font-family: 'Patrick Hand', cursive; font-size: 1.5rem; }
-.classroom-teacher { position: absolute; left: 13%; bottom: 6.2rem; z-index: 2; display: flex; flex-direction: column; align-items: center; }
-.classroom-teacher-shadow { width: 7rem; height: 1.2rem; margin-top: -0.4rem; border-radius: 50%; background: rgba(0,0,0,0.36); filter: blur(4px); }
-.classroom-teacher-label { display: flex; flex-direction: column; align-items: center; margin-top: 0.5rem; color: rgba(255, 247, 219, 0.92); text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
-.classroom-teacher-label strong { font-size: 0.72rem; }
-.classroom-teacher-label span { color: rgba(255, 247, 219, 0.63); font-size: 0.58rem; }
-.classroom-desks { position: absolute; inset: auto 0 0; height: 44%; z-index: 1; pointer-events: none; }
+.classroom-board-line { margin-top: 0.55rem; font-family: 'Patrick Hand', cursive; font-size: clamp(1rem, 2vw, 1.35rem); line-height: 1.12; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); overflow-wrap: anywhere; }
+.classroom-board-empty { color: rgba(255, 247, 219, 0.5); font-family: 'Patrick Hand', cursive; font-size: 1rem; }
+.classroom-teacher-head { position: absolute; left: 13%; bottom: 5.5rem; z-index: 2; width: 7rem; height: 5.8rem; overflow: hidden; }
+.classroom-teacher-head > div { transform: translateY(-0.15rem); }
 .classroom-desk { position: absolute; bottom: 1.1rem; width: 7rem; height: 2.5rem; border-radius: 0.4rem 0.4rem 0.15rem 0.15rem; background: linear-gradient(180deg, #8f5833, #54301f); box-shadow: 0 0.9rem 0 rgba(40, 22, 14, 0.75); }
 .classroom-desk-one { left: 42%; transform: scale(1.1); }
 .classroom-desk-two { left: 67%; bottom: 0.7rem; transform: scale(0.8); }
@@ -273,8 +269,7 @@
   .classroom-board { top: 3.25rem; width: calc(100% - 1.5rem); min-height: 12rem; border-width: 0.45rem; padding: 0.65rem 0.75rem; }
   .classroom-board-bar { gap: 0.5rem; font-size: 0.5rem; }
   .classroom-board-line { font-size: clamp(1.15rem, 6vw, 1.55rem); overflow-wrap: anywhere; }
-  .classroom-teacher { left: 0.5rem; bottom: 4.75rem; transform: scale(0.65); transform-origin: bottom left; }
-  .classroom-student-four, .classroom-desk-three { display: none; }
+  .classroom-teacher-head { left: 0.5rem; bottom: 4.75rem; transform: scale(0.65); transform-origin: bottom left; }
   .classroom-mode-toggle span { display: none; }
   .classroom-mode-toggle button { padding: 0.45rem; }
 }

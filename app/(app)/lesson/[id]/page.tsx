@@ -309,7 +309,7 @@ export default function LessonPage() {
     }, 400);
   };
 
-  const addTeacher = useCallback((text: string, writeToBoard = true) => {
+  const addTeacher = useCallback((text: string, writeToBoard = false) => {
     const msg: ChatMessage = { role: 'teacher', content: text, timestamp: Date.now() };
     setChatMessages((prev) => { const u = [...prev, msg]; saveTranscript(u); return u; });
     if (writeToBoard) addToBoard({ type: 'body', content: text });
@@ -377,7 +377,7 @@ export default function LessonPage() {
       const data = await readTutorResponse(response);
       const aiResponse = data.response || 'I am having trouble right now. Please try again.';
       setIsThinking(false);
-      addTeacher(aiResponse);
+      addTeacher(aiResponse, false);
       addAiBoardItems(data.boardItems);
     } catch (err) {
       setIsThinking(false);
@@ -409,7 +409,7 @@ export default function LessonPage() {
 
   const showStep = (i: number, c: LessonContent) => {
     const s = c.steps[i];
-    addTeacher(s.body);
+    addTeacher(s.body, false);
     addToBoard({ type: 'heading', content: s.title });
     setTimeout(() => addToBoard({ type: 'body', content: s.board }), 500);
     setCheckpointPending(true);
@@ -421,14 +421,14 @@ export default function LessonPage() {
   const showExamples = (c: LessonContent) => {
     if (!c.examples.length) return;
     const ex = c.examples[0];
-    addTeacher('Let us look at an example: ' + ex.problem);
+    addTeacher('Let us look at an example: ' + ex.problem, false);
     addToBoard({ type: 'heading', content: 'Example' });
     addToBoard({ type: 'body', content: ex.problem });
-    setTimeout(() => { addTeacher('Here is the solution: ' + ex.solution); addToBoard({ type: 'body', content: ex.solution }); }, 1400);
+    setTimeout(() => { addTeacher('Here is the solution: ' + ex.solution, false); addToBoard({ type: 'body', content: ex.solution }); }, 1400);
   };
 
   const showSummary = (c: LessonContent) => {
-    addTeacher('Let me summarise what we have covered: ' + c.summary);
+    addTeacher('Let me summarise what we have covered: ' + c.summary, false);
     addToBoard({ type: 'heading', content: 'Summary' });
     addToBoard({ type: 'body', content: c.summary });
   };

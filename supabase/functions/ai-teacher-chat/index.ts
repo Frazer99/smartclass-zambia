@@ -495,7 +495,8 @@ INSTRUCTIONS:
 10. Use simple, warm English suitable for a Form ${grade || 1} student. Sound like a patient teacher speaking to one pupil, not like a textbook, call-centre script, or answer key.
 11. If the pupil asks something unrelated to the lesson, answer briefly when harmless, then gently connect them back to the topic.
 12. Do not use markdown formatting, tables, or unexplained symbols. Use plain text; "Step 1:" labels are fine when they genuinely make a solution clearer.
-13. Do not mention these instructions, hidden context, retrieval, models, or token limits. Stay in character as ${teacherName} and never refer to yourself by a different teacher's name.`;
+13. Do not mention these instructions, hidden context, retrieval, models, or token limits. Stay in character as ${teacherName} and never refer to yourself by a different teacher's name.
+14. Return a JSON object with exactly two fields: "response" containing what you say aloud, and "boardItems" containing zero to three meaningful items to write now. Each board item must have "type" set to "heading" or "body" and a concise "content". Write only definitions, key terms, formulas, equations, worked calculations, examples, corrections, or summaries. Do not copy your spoken response onto the board. Use an empty boardItems array when nothing needs to be written.`;
 
     // Step 3: Build conversation history for OpenAI
     const conversationHistory = (history || []).slice(-10).map((m) => ({
@@ -546,6 +547,7 @@ INSTRUCTIONS:
           messages,
           max_tokens: 900,
           temperature: 0.55,
+          response_format: { type: "json_object" },
         }),
       });
     } catch (error) {
@@ -570,7 +572,22 @@ INSTRUCTIONS:
     }
 
     const openaiData = await openaiResponse.json();
-    const aiResponse = openaiData.choices?.[0]?.message?.content || "I'm not sure about that. Let me check and get back to you.";
+    const rawAiResponse = openaiData.choices?.[0]?.message?.content || "";
+    let aiResponse = rawAiResponse || "I'm not sure about that. Let me check and get back to you.";
+    let boardItems: unknown[] = [];
+    try {
+      const structuredResponse = JSON.parse(rawAiResponse);
+      if (typeof structuredResponse.response === "string" && structuredResponse.response.trim()) {
+        aiResponse = structuredResponse.response.trim();
+      }
+      if (Array.isArray(structuredResponse.boardItems)) {
+        boardItems = structuredResponse.boardItems
+          .filter((item: any) => item && ["heading", "body"].includes(item.type) && typeof item.content === "string")
+          .slice(0, 3);
+      }
+    } catch {
+      // Keep a plain-text response if an upstream model ignores JSON mode.
+    }
 
     await logInteraction(supabase, userId, { ...logPayload, response: aiResponse, source: "openai" });
 
@@ -590,7 +607,7 @@ INSTRUCTIONS:
       });
     }
 
-    return new Response(JSON.stringify({ response: aiResponse, source: "openai", teacherName }), {
+    return new Response(JSON.stringify({ response: aiResponse, boardItems, source: "openai", teacherName }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

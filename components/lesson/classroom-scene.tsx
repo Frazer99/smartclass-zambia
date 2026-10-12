@@ -26,10 +26,6 @@ export function ClassroomScene({
 }: ClassroomSceneProps) {
   return (
     <section className="classroom-scene" aria-label={`${teacherName} teaching ${lessonTitle}`}>
-      <div className="classroom-window classroom-window-one" />
-      <div className="classroom-window classroom-window-two" />
-      <div className="classroom-clock">SMARTCLASS / {grade ? `FORM ${grade}` : 'LESSON'}</div>
-
       <div className="classroom-board" aria-label="Smart board">
         <div className="classroom-board-bar">
           <span>{lessonTitle}</span>
@@ -48,28 +44,8 @@ export function ClassroomScene({
         </div>
       </div>
 
-      <div className="classroom-teacher">
+      <div className="classroom-teacher-head">
         <TeacherAvatar state={avatarState} writing={writing} size="lg" name={teacherName} />
-        <div className="classroom-teacher-shadow" />
-        <div className="classroom-teacher-label">
-          <strong>{teacherName}</strong>
-          <span>{status}</span>
-        </div>
-      </div>
-
-      <div className="classroom-desks" aria-hidden="true">
-        <div className="classroom-student classroom-student-one" />
-        <div className="classroom-student classroom-student-two" />
-        <div className="classroom-student classroom-student-three" />
-        <div className="classroom-student classroom-student-four" />
-        <div className="classroom-desk classroom-desk-one" />
-        <div className="classroom-desk classroom-desk-two" />
-        <div className="classroom-desk classroom-desk-three" />
-      </div>
-
-      <div className="classroom-overlay">
-        <span className="classroom-live-dot" /> Classroom
-        {children}
       </div>
     </section>
   );
