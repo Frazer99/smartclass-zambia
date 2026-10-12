@@ -104,6 +104,7 @@ export default function TopicPage() {
         </div>
         <h1 className="font-display text-2xl font-semibold text-chalk">{topic.name}</h1>
         <p className="text-muted-board text-sm mt-1">{topic.description}</p>
+        <p className="text-gold text-xs mt-2">Complete topic course: at least 5 hours. Pause and resume whenever you need.</p>
       </div>
 
       {videos.length > 0 && (

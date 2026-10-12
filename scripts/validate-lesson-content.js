@@ -35,7 +35,7 @@ function validateLesson(lesson) {
   if (applications.length < 2) warnings.push(`${label}: add 2 Zambia-relevant real-world examples`);
   if (practice.length < 3) warnings.push(`${label}: add at least 3 practice questions`);
   if (!content.exitTicket?.prompt) warnings.push(`${label}: add an exit ticket`);
-  if (content.estimatedMinutes < 40 || content.estimatedMinutes > 60) warnings.push(`${label}: duration should be between 40 and 60 minutes`);
+  if (content.estimatedMinutes < 300) warnings.push(`${label}: topic lesson should contain at least 300 minutes of content`);
 }
 
 (async () => {

@@ -12,6 +12,7 @@ import {
   Circle as RecordIcon,
   Square,
   Download,
+  FileUp,
   PenTool,
   Mic,
   MicOff,
@@ -28,6 +29,7 @@ import { ClassroomScene } from '@/components/lesson/classroom-scene';
 import { TeachingMode, loadTeachingMode, saveTeachingMode } from '@/lib/teachingMode';
 import { analyzeWeakAreas, RecentAttempt } from '@/lib/adaptiveLearning';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { extractAnswerText } from '@/lib/answer-extraction';
 import { readTutorResponse } from '@/lib/ai-teacher-stream';
 import { DEFAULT_TEACHER_VOICE, selectBrowserVoice, TeacherVoiceProfile, voiceProfileForPersona } from '@/lib/teacherVoice';
 
@@ -65,6 +67,10 @@ export default function LessonPage() {
   const [classroomMode, setClassroomMode] = useState<ClassroomMode>('classroom');
   const [isThinking, setIsThinking] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [plannedMinutes, setPlannedMinutes] = useState(300);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [uploadingWork, setUploadingWork] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [writing, setWriting] = useState(false);
   const [checkpointPending, setCheckpointPending] = useState(false);
   const [isRecordingLesson, setIsRecordingLesson] = useState(false);
@@ -77,6 +83,8 @@ export default function LessonPage() {
   const lessonRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamsRef = useRef<MediaStream[]>([]);
   const recordingChunksRef = useRef<Blob[]>([]);
+  const sessionHydratedRef = useRef(false);
+  const elapsedSecondsRef = useRef(0);
 
   useEffect(() => () => {
     lessonRecorderRef.current?.stop();
@@ -112,8 +120,19 @@ export default function LessonPage() {
     setLesson(ld);
     setTopic(ld.topic);
     setContent(ld.content as LessonContent);
+    const contentPlan = calculatePlannedMinutes(ld.content as LessonContent);
+    const savedPlan = Number(sd.planned_minutes) || contentPlan;
+    setPlannedMinutes(Math.max(300, savedPlan));
+    elapsedSecondsRef.current = Number(sd.elapsed_seconds) || 0;
+    setElapsedSeconds(elapsedSecondsRef.current);
+    setStepIndex(sd.lesson_step_index || 0);
+    setExampleIndex(sd.lesson_example_index || 0);
+    setPracticeIndex(sd.lesson_practice_index || 0);
+    setBoardItems((sd.board_items as BoardItem[] | null) || []);
+    setCheckpointPending(Boolean(sd.awaiting_understanding_check));
     if (sd.status === 'completed') { setCompleted(true); setPhase('complete'); }
-    if (sd.transcript?.length) {
+    else if (sd.transcript?.length) {
+      setPhase((sd.lesson_phase as LessonPhase) || 'intro');
       setChatMessages(sd.transcript as ChatMessage[]);
     } else {
       const firstName = profile?.full_name.split(' ')[0] || 'there';
@@ -137,6 +156,7 @@ export default function LessonPage() {
         }, 900);
       }
     }
+    sessionHydratedRef.current = true;
     setLoading(false);
   };
 
@@ -304,6 +324,45 @@ export default function LessonPage() {
     supabase.from('lesson_sessions').update({ transcript: msgs }).eq('id', sessionId);
   };
 
+  useEffect(() => {
+    if (!sessionHydratedRef.current) return;
+    void supabase.from('lesson_sessions').update({
+      lesson_phase: phase,
+      lesson_step_index: stepIndex,
+      lesson_example_index: exampleIndex,
+      lesson_practice_index: practiceIndex,
+      planned_minutes: plannedMinutes,
+      elapsed_seconds: elapsedSecondsRef.current,
+      board_items: boardItems,
+      awaiting_understanding_check: checkpointPending,
+    }).eq('id', sessionId);
+  }, [phase, stepIndex, exampleIndex, practiceIndex, boardItems, checkpointPending, sessionId]);
+
+  useEffect(() => {
+    if (!sessionHydratedRef.current || completed) return;
+    const timer = window.setInterval(() => {
+      elapsedSecondsRef.current += 30;
+      setElapsedSeconds(elapsedSecondsRef.current);
+      void supabase.from('lesson_sessions').update({ elapsed_seconds: elapsedSecondsRef.current }).eq('id', sessionId);
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [completed, sessionId]);
+
+  const pauseLesson = async () => {
+    await supabase.from('lesson_sessions').update({
+      lesson_phase: phase,
+      lesson_step_index: stepIndex,
+      lesson_example_index: exampleIndex,
+      lesson_practice_index: practiceIndex,
+      planned_minutes: plannedMinutes,
+      elapsed_seconds: elapsedSecondsRef.current,
+      board_items: boardItems,
+      awaiting_understanding_check: checkpointPending,
+    }).eq('id', sessionId);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    router.push('/dashboard');
+  };
+
   const addToBoard = (item: BoardItem) => {
     setWriting(true);
     setTimeout(() => {
@@ -329,11 +388,13 @@ export default function LessonPage() {
     });
   };
 
-  const handleSend = async () => {
-    if (!pupilInput.trim() || !content) return;
+  const handleSend = async (messageOverride?: string, isExerciseSubmission = false) => {
+    const messageText = messageOverride?.trim() || pupilInput.trim();
+    if (!messageText || !content) return;
+    const isExerciseRequest = messageText.toLowerCase().startsWith('give me');
     const wasCheckpoint = checkpointPending;
-    setCheckpointPending(false);
-    const msg: ChatMessage = { role: 'pupil', content: pupilInput, timestamp: Date.now() };
+    setCheckpointPending(isExerciseRequest ? wasCheckpoint : false);
+    const msg: ChatMessage = { role: 'pupil', content: messageText, timestamp: Date.now() };
     const updated = [...chatMessages, msg];
     setChatMessages(updated);
     saveTranscript(updated);
@@ -351,7 +412,7 @@ export default function LessonPage() {
         },
         body: JSON.stringify({
           sessionId,
-          message: pupilInput,
+          message: messageText,
           lessonTitle: lesson?.title,
           topicId: topic?.id,
           topicName: topic?.name,
@@ -362,7 +423,8 @@ export default function LessonPage() {
           lessonContent: content,
           history: updated.slice(-10).map((m) => ({ role: m.role, content: m.content })),
           weakAreaReason: weakAreaReason || undefined,
-          isUnderstandingCheckResponse: wasCheckpoint,
+          isUnderstandingCheckResponse: wasCheckpoint && !isExerciseRequest && !isExerciseSubmission,
+          isExerciseSubmission,
         }),
       });
 
@@ -386,8 +448,27 @@ export default function LessonPage() {
       addAiBoardItems(data.boardItems);
     } catch (err) {
       setIsThinking(false);
-      const fallback = generateFallbackResponse(pupilInput, content);
+      const fallback = generateFallbackResponse(messageText, content);
       addTeacher(fallback, false);
+    }
+  };
+
+  const handleExerciseWorkUpload = async (file: File) => {
+    setUploadingWork(true);
+    setUploadProgress(0);
+    try {
+      const extractedWork = await extractAnswerText(file, setUploadProgress);
+      if (!extractedWork.trim()) throw new Error('No readable work was found in that file.');
+      await handleSend(
+        `Please mark my uploaded exercise work. Review my method, working, final answer, and mistakes. Here is my work:\n${extractedWork}`,
+        true,
+      );
+      toast.success('Your work was sent to the AI teacher for marking.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not read the uploaded work.');
+    } finally {
+      setUploadingWork(false);
+      setUploadProgress(null);
     }
   };
 
@@ -562,10 +643,23 @@ export default function LessonPage() {
               <Download className="h-3.5 w-3.5" /> Save
             </a>
           )}
+          {!completed && (
+            <button
+              onClick={() => void pauseLesson()}
+              className="flex items-center gap-1.5 text-xs border border-gold/40 text-gold rounded-lg px-2.5 py-1.5 hover:bg-gold/10 transition-colors"
+            >
+              Pause &amp; save
+            </button>
+          )}
         </div>
       </div>
 
-      <h1 className="font-display text-xl font-semibold text-chalk">{lesson.title}</h1>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h1 className="font-display text-xl font-semibold text-chalk">{lesson.title}</h1>
+          <span className="text-xs text-muted-board">
+            Planned: {formatStudyDuration(plannedMinutes)} · Studied: {formatStudyDuration(Math.floor(elapsedSeconds / 60))}
+          </span>
+        </div>
 
       <ClassroomScene
         teacherName={teacherName}
@@ -689,6 +783,29 @@ export default function LessonPage() {
             {isThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Send
           </button>
+          <button
+            type="button"
+            onClick={() => void handleSend('Give me a practice exercise for this subtopic, then wait for my answer.')}
+            disabled={isThinking}
+            className="flex items-center gap-1.5 rounded-lg border border-teal/40 px-3 py-2 text-sm text-teal hover:bg-teal/10 disabled:opacity-40"
+          >
+            <BookOpen className="h-4 w-4" /> Practice this subtopic
+          </button>
+          <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-teal/40 px-3 py-2 text-sm text-teal hover:bg-teal/10 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40">
+            <FileUp className="h-4 w-4" />
+            {uploadingWork ? `Reading work ${uploadProgress ?? 0}%` : 'Upload work for marking'}
+            <input
+              type="file"
+              accept="image/*,.pdf,.txt"
+              disabled={uploadingWork || isThinking}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleExerciseWorkUpload(file);
+                event.target.value = '';
+              }}
+              className="sr-only"
+            />
+          </label>
         </div>
       )}
 
@@ -719,6 +836,32 @@ export default function LessonPage() {
               <CheckCircle2 className="h-3.5 w-3.5" /> Practice
             </button>
           )}
+          {!completed && !checkpointPending && (
+            <button
+              onClick={() => void handleSend('Give me one exercise based on what we have covered so far, and wait for my answer.')}
+              disabled={isThinking}
+              className="flex items-center gap-1.5 rounded-lg border border-teal/40 px-3 py-2 text-xs text-teal hover:bg-teal/10 disabled:opacity-40"
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Request exercise
+            </button>
+          )}
+          {!completed && (
+            <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-teal/40 px-3 py-2 text-xs text-teal hover:bg-teal/10">
+              <FileUp className="h-3.5 w-3.5" />
+              {uploadingWork ? `Reading ${uploadProgress ?? 0}%` : 'Upload work'}
+              <input
+                type="file"
+                accept="image/*,.pdf,.txt"
+                disabled={uploadingWork || isThinking}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleExerciseWorkUpload(file);
+                  event.target.value = '';
+                }}
+                className="sr-only"
+              />
+            </label>
+          )}
           <button
             onClick={handleNext}
             disabled={phase === 'complete'}
@@ -746,4 +889,24 @@ function generateFallbackResponse(input: string, content: LessonContent): string
     return `No worries at all. Let me slow this down and explain it a different way. ${content.examples[0]?.problem ? 'Use this example as a guide: ' + content.examples[0].problem : 'We will take the idea one step at a time and connect each step to the one before it.'}`;
   }
   return 'Good effort. I will work through the key idea step by step and put the reasoning on the whiteboard so you can follow the method.';
+}
+
+function calculatePlannedMinutes(content: LessonContent): number {
+  const stepMinutes = (content.steps?.length || 0) * 25;
+  const exampleMinutes = (content.examples?.length || 0) * 20;
+  const guidedMinutes = (content.guidedPractice?.length || 0) * 20;
+  const independentMinutes = (content.independentPractice?.length || 0) * 25;
+  const assessmentMinutes = content.exitTicket ? 30 : 0;
+  const objectiveMinutes = (content.objectives?.length || 0) * 5;
+  return Math.max(
+    300,
+    content.estimatedMinutes || 0,
+    stepMinutes + exampleMinutes + guidedMinutes + independentMinutes + assessmentMinutes + objectiveMinutes,
+  );
+}
+
+function formatStudyDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return hours ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
 }

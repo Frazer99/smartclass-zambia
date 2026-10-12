@@ -28,6 +28,7 @@ interface ChatRequest {
    *  e.g. "Missed the last 3 practice questions in a row". When present,
    *  Mr. Chomba is told to teach this pupil more gently on this topic. */
   weakAreaReason?: string;
+  isExerciseSubmission?: boolean;
 }
 
 const STOPWORDS = new Set([
@@ -122,7 +123,7 @@ Deno.serve(async (req: Request) => {
     const body: ChatRequest = await req.json();
     const {
       sessionId, message, lessonTitle, topicId, topicName, topicDescription,
-      subjectId, grade, subjectName, lessonContent, history, weakAreaReason,
+      subjectId, grade, subjectName, lessonContent, history, weakAreaReason, isExerciseSubmission,
     } = body;
 
     if (!message) {
@@ -481,6 +482,8 @@ ZAMBIAN CURRICULUM MATERIALS (use these after exact solutions as the supporting 
 ${curriculumContext || "No specific curriculum materials found for this query. Use the lesson content above."}
 ${supplementaryContext ? `\nSUPPLEMENTARY MATERIALS AND SOLUTION GUIDES (use these when relevant, including for past-paper questions):\n${supplementaryContext}` : ""}
 ${uploadedSyllabusContext}
+
+${isExerciseSubmission ? `THIS IS AN UPLOADED EXERCISE SUBMISSION. Review the pupil's work carefully. Mark the method and final answer against the exercise in the recent conversation. State the mark awarded and maximum mark when the exercise has enough information for that, identify exactly what was correct or incorrect, show the corrected working for mistakes, and give one concise next step. Do not simply say that the work was received.` : ""}
 
 INSTRUCTIONS:
 1. Always teach from the latest uploaded syllabus for this subject and Form when available. It is the source of truth for the topics and subtopics; do not introduce an unrelated seeded topic.

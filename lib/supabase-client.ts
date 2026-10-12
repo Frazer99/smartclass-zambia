@@ -113,8 +113,12 @@ export type LessonSession = {
   started_at: string;
   completed_at: string | null;
   transcript: any[];
+  planned_minutes?: number;
+  elapsed_seconds?: number;
   lesson_phase?: 'intro' | 'steps' | 'examples' | 'guided_practice' | 'independent_practice' | 'assessment' | 'summary' | 'complete';
   lesson_step_index?: number;
+  lesson_example_index?: number;
+  lesson_practice_index?: number;
   board_items?: { type: 'heading' | 'body' | 'formula' | 'step' | 'example'; content: string; done?: boolean }[];
   awaiting_understanding_check?: boolean;
 };
