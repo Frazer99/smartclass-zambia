@@ -234,7 +234,8 @@ function syllabusTopics(text: string): SyllabusTopic[] {
 
   for (const candidate of candidates) {
     if (/^(form|grade|chapter|unit)\s+\d+$/i.test(candidate.name)) continue;
-    if (topics.some((topic) => topic.name.toLowerCase() === candidate.name.toLowerCase())) continue;
+    const topicKey = candidate.name.toLowerCase().replace(/\s+/g, " ").trim();
+    if (topics.some((topic) => topic.name.toLowerCase().replace(/\s+/g, " ").trim() === topicKey)) continue;
     const parentIndex = candidate.level > 0 ? (lastAtLevel[candidate.level - 1] ?? null) : null;
     topics.push({ name: candidate.name, reference: candidate.reference, level: candidate.level, parentIndex });
     lastAtLevel[candidate.level] = topics.length - 1;
@@ -521,18 +522,9 @@ Deno.serve(async (req: Request) => {
       const topics = syllabusTopics(extractedText);
       if (!subjectId || !materialGrade) throw new Error("A syllabus must have a subject and Form before topics can be generated.");
 
-      // The uploaded syllabus is the source of truth for this subject/Form.
-      // Replacing the scoped set also removes lessons and questions attached
-      // to obsolete seeded topics through the database foreign keys.
-      const { error: deleteError } = await adminClient.from("topics")
-        .delete()
-        .eq("subject_id", subjectId)
-        .eq("grade", materialGrade);
-      if (deleteError) throw deleteError;
-
       const insertedTopics: { id: string }[] = [];
       for (const topic of topics) {
-        const { data: inserted, error } = await adminClient.from("topics").insert({
+        const topicPayload = {
           subject_id: subjectId,
           grade: materialGrade,
           name: topic.name,
@@ -541,10 +533,20 @@ Deno.serve(async (req: Request) => {
           description: `Derived from uploaded syllabus: ${topic.name}`,
           display_order: topicsCreated,
           source_material_id: body.material_id,
-        }).select("id").single();
+        };
+        const { data: existing, error: lookupError } = await adminClient.from("topics")
+          .select("id")
+          .eq("subject_id", subjectId)
+          .eq("grade", materialGrade)
+          .eq("name", topic.name)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+        const { data: inserted, error } = existing
+          ? await adminClient.from("topics").update(topicPayload).eq("id", existing.id).select("id").single()
+          : await adminClient.from("topics").insert(topicPayload).select("id").single();
         if (error || !inserted) throw error || new Error(`Could not create syllabus topic: ${topic.name}`);
         insertedTopics.push(inserted);
-        topicsCreated++;
+        if (!existing) topicsCreated++;
       }
 
       for (let index = 0; index < topics.length; index++) {
@@ -562,7 +564,7 @@ Deno.serve(async (req: Request) => {
       // explanation and examples for the pupil's question.
       for (let index = 0; index < topics.length; index++) {
         const topic = topics[index];
-        const { error } = await adminClient.from("lessons").insert({
+        const lessonPayload = {
           topic_id: insertedTopics[index].id,
           title: `Understanding ${topic.name}`,
           difficulty: "standard",
@@ -577,7 +579,16 @@ Deno.serve(async (req: Request) => {
             examples: [],
             summary: `Review the key ideas in ${topic.name} and answer the teacher's check-in before moving on.`,
           },
-        });
+        };
+        const { data: existingLesson, error: lessonLookupError } = await adminClient.from("lessons")
+          .select("id")
+          .eq("topic_id", insertedTopics[index].id)
+          .eq("title", lessonPayload.title)
+          .maybeSingle();
+        if (lessonLookupError) throw lessonLookupError;
+        const { error } = existingLesson
+          ? await adminClient.from("lessons").update(lessonPayload).eq("id", existingLesson.id)
+          : await adminClient.from("lessons").insert(lessonPayload);
         if (error) throw error;
       }
     }
