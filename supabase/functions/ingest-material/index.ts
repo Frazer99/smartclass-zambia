@@ -393,11 +393,13 @@ Deno.serve(async (req: Request) => {
     const body = await req.json() as IngestRequest;
     const pastedText = body.extracted_text?.trim() || "";
     const isSyllabus = body.material_type === "curriculum" || body.material_type === "syllabus";
-    if (!body.input_mode || !["pasted_text", "uploaded_file"].includes(body.input_mode)) {
+    // Keep older deployed admin pages compatible during a rolling frontend/backend update.
+    const inputMode = body.input_mode || (body.storage_path ? "uploaded_file" : pastedText ? "pasted_text" : null);
+    if (!inputMode || !["pasted_text", "uploaded_file"].includes(inputMode)) {
       return response({ error: "input_mode must be pasted_text or uploaded_file" }, 400);
     }
-    if (body.input_mode === "pasted_text" && !pastedText) return response({ error: "Pasted text is required for pasted_text input" }, 400);
-    if (body.input_mode === "uploaded_file" && !body.storage_path && !body.preview_only) return response({ error: "Uploaded file storage_path is required" }, 400);
+    if (inputMode === "pasted_text" && !pastedText) return response({ error: "Pasted text is required for pasted_text input" }, 400);
+    if (inputMode === "uploaded_file" && !body.storage_path && !body.preview_only) return response({ error: "Uploaded file storage_path is required" }, 400);
     if (body.preview_only) {
       if (!pastedText) return response({ error: "Paste syllabus text before previewing." }, 400);
       if (!isSyllabus) {
