@@ -401,14 +401,29 @@ Deno.serve(async (req: Request) => {
     if (inputMode === "pasted_text" && !pastedText) return response({ error: "Pasted text is required for pasted_text input" }, 400);
     if (inputMode === "uploaded_file" && !body.storage_path && !body.preview_only) return response({ error: "Uploaded file storage_path is required" }, 400);
     if (body.preview_only) {
-      if (!pastedText) return response({ error: "Paste syllabus text before previewing." }, 400);
       if (!isSyllabus) {
         return response({ error: "Preview is only available for syllabus material." }, 400);
       }
-      const previewTopics = syllabusTopics(pastedText);
+      let previewText = pastedText;
+      if (!previewText && body.storage_path) {
+        const { data: previewFile, error: previewDownloadError } = await adminClient.storage.from("content-materials").download(body.storage_path);
+        if (previewDownloadError || !previewFile) throw new Error(previewDownloadError?.message || "Could not download the file for preview.");
+        const previewBytes = new Uint8Array(await previewFile.arrayBuffer());
+        const previewMimeType = previewFile.type || (body.file_type === "image" ? "image/png" : "application/pdf");
+        previewText = body.file_type === "image"
+          ? await extractImageText(previewBytes, previewMimeType)
+          : await extractSelectableText(previewBytes);
+        if (!hasReadableMaterialText(previewText)) {
+          if (body.file_type === "image") throw new Error("The image OCR result was not readable enough to preview.");
+          previewText = await extractScannedPdfText(previewBytes);
+        }
+      }
+      if (!previewText || !hasReadableMaterialText(previewText)) return response({ error: "The extracted text was not readable enough to preview." }, 400);
+      const previewTopics = syllabusTopics(previewText);
       return response({
         success: true,
-        extracted_characters: pastedText.length,
+        extracted_characters: previewText.length,
+        extracted_text: previewText,
         topics: previewTopics,
       });
     }
