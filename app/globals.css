@@ -242,7 +242,7 @@
 .classroom-board-status { color: hsl(41 76% 60%); }
 .classroom-board-content { padding-top: 0.9rem; color: #fff6d5; }
 .classroom-board-heading { color: hsl(41 76% 60%); font-family: 'Space Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; }
-.classroom-board-line { margin-top: 0.55rem; font-family: 'Patrick Hand', cursive; font-size: clamp(0.78rem, 1.2vw, 0.95rem); line-height: 1.22; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); overflow-wrap: anywhere; }
+.classroom-board-line { margin-top: 0.55rem; font-family: 'Patrick Hand', cursive; font-size: clamp(0.88rem, 1.5vw, 1.1rem); line-height: 1.18; text-shadow: 0 0 0.7rem rgba(255,255,255,0.1); overflow-wrap: anywhere; }
 .classroom-board-empty { color: rgba(255, 247, 219, 0.5); font-family: 'Patrick Hand', cursive; font-size: 1rem; }
 .classroom-teacher-head { position: absolute; left: 13%; bottom: 5.5rem; z-index: 2; width: 7rem; height: 5.8rem; overflow: hidden; }
 .classroom-teacher-head > div { transform: translateY(-0.15rem); }
@@ -268,7 +268,7 @@
   .classroom-window { display: none; }
   .classroom-board { top: 3.25rem; width: calc(100% - 1.5rem); min-height: 12rem; border-width: 0.45rem; padding: 0.65rem 0.75rem; }
   .classroom-board-bar { gap: 0.5rem; font-size: 0.5rem; }
-  .classroom-board-line { font-size: clamp(0.82rem, 3.5vw, 1.02rem); overflow-wrap: anywhere; }
+  .classroom-board-line { font-size: clamp(0.92rem, 4.5vw, 1.18rem); overflow-wrap: anywhere; }
   .classroom-teacher-head { left: 0.5rem; bottom: 4.75rem; transform: scale(0.65); transform-origin: bottom left; }
   .classroom-mode-toggle span { display: none; }
   .classroom-mode-toggle button { padding: 0.45rem; }
