@@ -166,7 +166,7 @@ export default function AdminPage() {
   const [curriculumSubjectFilter, setCurriculumSubjectFilter] = useState<string>('');
   const [showTopicForm, setShowTopicForm] = useState(false);
   const [topicForm, setTopicForm] = useState({ subject_id: '', grade: '', name: '', category: '', syllabus_reference: '', display_order: 0, description: '' });
-  const [syllabusUpload, setSyllabusUpload] = useState<any>({ subject_id: '', grade: '', file: null, title: '' });
+  const [syllabusUpload, setSyllabusUpload] = useState<any>({ subject_id: '', grade: '', file: null, title: '', input_method: 'paste', text: '', extracted_text: '', preview_topics: [] });
   const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
   const [reprocessingSyllabusId, setReprocessingSyllabusId] = useState<string | null>(null);
   const [showPastPaperForm, setShowPastPaperForm] = useState(false);
@@ -640,7 +640,7 @@ export default function AdminPage() {
         if (uploadError) throw new Error(`${isImage ? 'Image' : 'PDF'} upload failed: ${uploadError.message}`);
         ingestionStarted = true;
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-          body: { material_id: material.data.id, storage_path: storagePath, extracted_text: extractedText, file_type: isImage ? 'image' : 'pdf', subject_id: form.subject_id || null, topic_id: form.topic_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
+          body: { material_id: material.data.id, storage_path: storagePath, input_mode: 'uploaded_file', extracted_text: extractedText, file_type: isImage ? 'image' : 'pdf', subject_id: form.subject_id || null, topic_id: form.topic_id || null, grade: form.grade ? parseInt(form.grade) : null, material_type: form.material_type },
         });
         if (ingestError) throw new Error(`PDF processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The PDF could not be processed.')}`);
         if (!ingestResult?.success || !ingestResult.extracted_characters) {
@@ -728,6 +728,7 @@ export default function AdminPage() {
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
         body: {
           material_id: material.id,
+          input_mode: 'uploaded_file',
           past_paper_id: editingPastPaper?.id || null,
           storage_path: storagePath,
           extracted_text: extractedText,
@@ -861,6 +862,7 @@ export default function AdminPage() {
         const { data, error } = await supabase.functions.invoke('ingest-material', {
           body: {
             material_id: material.id,
+            input_mode: 'uploaded_file',
             storage_path: material.storage_path,
             extracted_text: extractedText,
             subject_id: material.subject_id,
@@ -923,38 +925,62 @@ export default function AdminPage() {
     setShowTopicForm(false); fetchCurriculum();
   };
 
+  const handleSyllabusPreview = async () => {
+    const { subject_id, grade, file, text } = syllabusUpload;
+    if (!subject_id || !grade) { toast.error('Subject and Form are required before previewing.'); return; }
+    if (!file && !text?.trim()) { toast.error('Paste syllabus text or select a PDF file first.'); return; }
+    if (file && syllabusUpload.input_method === 'pdf' && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { toast.error('Only PDF files can be uploaded in PDF mode.'); return; }
+    if (file && syllabusUpload.input_method === 'txt' && file.type !== 'text/plain' && !/\.txt$/i.test(file.name)) { toast.error('Only TXT files can be uploaded in TXT mode.'); return; }
+    setUploadingSyllabus(true);
+    try {
+      const extractedText = text?.trim() || (syllabusUpload.input_method === 'txt' ? await file.text() : await extractPdfTextLocally(file));
+      const { data, error } = await supabase.functions.invoke('ingest-material', {
+        body: { preview_only: true, input_mode: file ? 'uploaded_file' : 'pasted_text', extracted_text: extractedText, subject_id, grade: Number(grade), material_type: 'syllabus' },
+      });
+      if (error) throw new Error(await edgeFunctionErrorMessage(error, 'The syllabus could not be previewed.'));
+      if (!data?.success || !Array.isArray(data.topics) || data.topics.length === 0) {
+        throw new Error('No syllabus topics were detected. Check the text or PDF before importing.');
+      }
+      setSyllabusUpload({ ...syllabusUpload, extracted_text: extractedText, preview_topics: data.topics });
+      toast.success(`${data.topics.length} topic candidates detected. Review them before importing.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Syllabus preview failed.');
+    } finally {
+      setUploadingSyllabus(false);
+    }
+  };
+
   const handleSyllabusUpload = async () => {
-    const { subject_id, grade, file } = syllabusUpload;
-    if (!subject_id || !grade || !file) { toast.error('Subject, Form, and a PDF file are required.'); return; }
-    if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { toast.error('Only PDF files can be uploaded.'); return; }
-    const previousSyllabi = materials.filter((material) =>
-      material.material_type === 'syllabus' && material.subject_id === subject_id && material.grade === Number(grade)
-    );
-    if (previousSyllabi.length > 0 && !confirm(`Replace the existing Form ${grade} syllabus for this subject? The new PDF will replace its document and generated topics.`)) return;
+    const { subject_id, grade, file, extracted_text: extractedText, preview_topics: previewTopics } = syllabusUpload;
+    if (!subject_id || !grade || !extractedText || !previewTopics?.length) { toast.error('Preview the syllabus and review at least one topic before importing.'); return; }
+    if (file && syllabusUpload.input_method === 'pdf' && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { toast.error('Only PDF files can be uploaded in PDF mode.'); return; }
+    if (file && syllabusUpload.input_method === 'txt' && file.type !== 'text/plain' && !/\.txt$/i.test(file.name)) { toast.error('Only TXT files can be uploaded in TXT mode.'); return; }
     setUploadingSyllabus(true);
     let materialId: string | null = null;
     let storagePath: string | null = null;
     let ingestionStarted = false;
     try {
       const title = syllabusUpload.title || `${subjects.find((subject) => subject.id === subject_id)?.name || 'Curriculum'} Syllabus Form ${grade}`;
-      const extractedText = await extractPdfTextLocally(file);
+      const extractedText = syllabusUpload.text?.trim()
+        || (syllabusUpload.input_method === 'txt' ? await file.text() : await extractPdfTextLocally(file));
       const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
         body: { title, source: 'Admin syllabus upload', material_type: 'syllabus', subject_id, grade: Number(grade), status: 'approved' },
       });
       if (materialError || !material?.data) throw new Error(materialError?.message || 'Could not create syllabus record.');
       materialId = material.data.id;
-      storagePath = `${createClientId()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, file, { contentType: 'application/pdf', upsert: false });
-      if (uploadError) throw uploadError;
+      if (file) {
+        storagePath = `${createClientId()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, file, { contentType: file.type || (syllabusUpload.input_method === 'txt' ? 'text/plain' : 'application/pdf'), upsert: false });
+        if (uploadError) throw uploadError;
+      }
       ingestionStarted = true;
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.data.id, storage_path: storagePath, extracted_text: extractedText, subject_id, grade: Number(grade), material_type: 'syllabus' },
+        body: { material_id: material.data.id, storage_path: storagePath, input_mode: file ? 'uploaded_file' : 'pasted_text', extracted_text: extractedText, reviewed_topics: previewTopics, confirmed: true, subject_id, grade: Number(grade), material_type: 'syllabus' },
       });
       if (ingestError) throw new Error(`Syllabus processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The syllabus PDF could not be processed.')}`);
       if (!ingestResult?.success || !ingestResult.extracted_characters) throw new Error('Syllabus was uploaded but could not be indexed for AI use.');
-      for (const previousSyllabus of previousSyllabi) await handleDelete(previousSyllabus.id, false);
-      toast.success(`Syllabus processed. ${ingestResult.topics_created || 0} topics generated.`);
-      setSyllabusUpload({ subject_id: '', grade: '', file: null, title: '' });
+      toast.success(`Syllabus imported. ${ingestResult.topics_created || 0} new topics added; existing topics were preserved.`);
+      setSyllabusUpload({ subject_id: '', grade: '', file: null, title: '', input_method: 'paste', text: '', extracted_text: '', preview_topics: [] });
       fetchMaterials(); fetchCurriculum();
     } catch (error) {
       if (!ingestionStarted) {
@@ -977,10 +1003,12 @@ export default function AdminPage() {
         body: {
           material_id: material.id,
           storage_path: material.storage_path,
+          input_mode: 'uploaded_file',
           extracted_text: null,
           subject_id: material.subject_id,
           grade: material.grade,
           material_type: material.material_type,
+          transcription_only: true,
           force_ocr: true,
         },
       });
@@ -1264,7 +1292,7 @@ export default function AdminPage() {
           showTopicForm={showTopicForm} setShowTopicForm={setShowTopicForm}
           topicForm={topicForm} setTopicForm={setTopicForm} onTopicSubmit={handleTopicSubmit}
           syllabusUpload={syllabusUpload} setSyllabusUpload={setSyllabusUpload}
-          onSyllabusUpload={handleSyllabusUpload} uploadingSyllabus={uploadingSyllabus}
+          onSyllabusPreview={handleSyllabusPreview} onSyllabusUpload={handleSyllabusUpload} uploadingSyllabus={uploadingSyllabus}
           onDeleteSyllabus={handleDelete} onReprocessSyllabus={handleReprocessSyllabus}
         />
       )}

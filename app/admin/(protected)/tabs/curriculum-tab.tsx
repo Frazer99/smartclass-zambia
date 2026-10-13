@@ -11,14 +11,14 @@ export function CurriculumTab({
   materials,
   curriculumSubjectFilter, setCurriculumSubjectFilter,
   showTopicForm, setShowTopicForm, topicForm, setTopicForm, onTopicSubmit,
-  syllabusUpload, setSyllabusUpload, onSyllabusUpload, uploadingSyllabus, onDeleteSyllabus, onReprocessSyllabus,
+  syllabusUpload, setSyllabusUpload, onSyllabusPreview, onSyllabusUpload, uploadingSyllabus, onDeleteSyllabus, onReprocessSyllabus,
 }: {
   subjects: Subject[]; topics: Topic[]; lessons: Lesson[];
   materials: ContentMaterial[];
   curriculumSubjectFilter: string; setCurriculumSubjectFilter: (v: string) => void;
   showTopicForm: boolean; setShowTopicForm: (v: boolean) => void;
   topicForm: any; setTopicForm: (v: any) => void; onTopicSubmit: () => void;
-  syllabusUpload: any; setSyllabusUpload: (v: any) => void; onSyllabusUpload: () => void; uploadingSyllabus: boolean;
+  syllabusUpload: any; setSyllabusUpload: (v: any) => void; onSyllabusPreview: () => void; onSyllabusUpload: () => void; uploadingSyllabus: boolean;
   onDeleteSyllabus: (id: string) => void;
   onReprocessSyllabus: (material: ContentMaterial) => void;
 }) {
@@ -51,20 +51,50 @@ export function CurriculumTab({
         <div className="flex items-center gap-2">
           <Upload className="h-5 w-5 text-gold" />
           <div>
-            <h3 className="font-display text-lg font-semibold text-chalk">Upload syllabus PDF</h3>
-            <p className="text-xs text-muted-board">The system extracts the syllabus and proposes topics for this Form.</p>
+            <h3 className="font-display text-lg font-semibold text-chalk">Prepare syllabus import</h3>
+            <p className="text-xs text-muted-board">Paste text or upload a PDF, preview the detected topics, then confirm the import.</p>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Subject" required><select className="form-input" value={syllabusUpload.subject_id} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, subject_id: e.target.value })}><option value="">Select subject...</option>{subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
           <Field label="Form" required><select className="form-input" value={syllabusUpload.grade} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, grade: e.target.value })}><option value="">Select form...</option>{[1, 2, 3, 4, 5, 6].map((g) => <option key={g} value={g}>Form {g}</option>)}</select></Field>
-          <Field label="PDF file" required><input className="form-input text-xs" type="file" accept="application/pdf,.pdf" onChange={(e) => setSyllabusUpload({ ...syllabusUpload, file: e.target.files?.[0] || null })} /></Field>
+          <Field label="Input method"><select className="form-input" value={syllabusUpload.input_method} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, input_method: e.target.value, file: null, text: '', extracted_text: '', preview_topics: [] })}><option value="paste">Paste text</option><option value="pdf">Upload PDF</option><option value="txt">Upload TXT</option></select></Field>
         </div>
+        {syllabusUpload.input_method === 'paste' ? (
+          <Field label="Syllabus text" required><textarea className="form-input min-h-40" value={syllabusUpload.text} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, text: e.target.value, extracted_text: '', preview_topics: [] })} placeholder="Paste the syllabus text here, including numbered topic headings and subtopics." /></Field>
+        ) : (
+          <Field label={`${syllabusUpload.input_method.toUpperCase()} file`} required><input className="form-input text-xs" type="file" accept={syllabusUpload.input_method === 'txt' ? 'text/plain,.txt' : 'application/pdf,.pdf'} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, file: e.target.files?.[0] || null, text: '', extracted_text: '', preview_topics: [] })} /></Field>
+        )}
         <Field label="Title"><input className="form-input" value={syllabusUpload.title} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, title: e.target.value })} placeholder="e.g. Mathematics Syllabus Form 3" /></Field>
-        <button onClick={onSyllabusUpload} disabled={uploadingSyllabus} className="btn-gold flex items-center gap-1.5 text-sm px-4 py-2 disabled:opacity-50">
+        <button onClick={onSyllabusUpload} disabled={uploadingSyllabus || !syllabusUpload.preview_topics?.length} className="btn-gold flex items-center gap-1.5 text-sm px-4 py-2 disabled:opacity-50">
           {uploadingSyllabus ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          {uploadingSyllabus ? 'Processing syllabus...' : 'Upload and generate topics'}
+          {uploadingSyllabus ? 'Importing syllabus...' : 'Confirm import'}
         </button>
+        <button onClick={onSyllabusPreview} disabled={uploadingSyllabus} className="inline-flex items-center gap-1.5 border border-teal/40 rounded-lg px-4 py-2 text-sm text-teal hover:bg-teal/10 transition-colors disabled:opacity-50">
+          {uploadingSyllabus ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          Preview detected topics
+        </button>
+        {syllabusUpload.preview_topics?.length > 0 && <div className="border-t border-white/10 pt-4 space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold text-chalk">Review detected topics</h4>
+            <p className="text-xs text-muted-board">Edit names or references, and remove anything that is not a curriculum topic.</p>
+          </div>
+          {syllabusUpload.preview_topics.map((topic: any, index: number) => <div key={`${topic.reference || 'topic'}-${index}`} className="grid gap-2 sm:grid-cols-[5rem_1fr_8rem_auto] items-center">
+            <input className="form-input text-xs" value={topic.reference || ''} onChange={(e) => {
+              const preview_topics = syllabusUpload.preview_topics.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, reference: e.target.value || null } : item);
+              setSyllabusUpload({ ...syllabusUpload, preview_topics });
+            }} placeholder="Ref." />
+            <input className="form-input text-sm" value={topic.name} onChange={(e) => {
+              const preview_topics = syllabusUpload.preview_topics.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, name: e.target.value } : item);
+              setSyllabusUpload({ ...syllabusUpload, preview_topics });
+            }} />
+            <select className="form-input text-xs" value={topic.level ?? 0} onChange={(e) => {
+              const preview_topics = syllabusUpload.preview_topics.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, level: Number(e.target.value), parentIndex: null } : item);
+              setSyllabusUpload({ ...syllabusUpload, preview_topics });
+            }}><option value={0}>Topic</option><option value={1}>Subtopic</option><option value={2}>Detail</option></select>
+            <button type="button" title="Remove topic" onClick={() => setSyllabusUpload({ ...syllabusUpload, preview_topics: syllabusUpload.preview_topics.filter((_: any, itemIndex: number) => itemIndex !== index).map((item: any) => ({ ...item, parentIndex: item.parentIndex === index ? null : item.parentIndex > index ? item.parentIndex - 1 : item.parentIndex })) })} className="inline-flex items-center justify-center rounded-lg border border-rust/40 p-2 text-rust hover:bg-rust/10"><Trash2 className="h-4 w-4" /></button>
+          </div>)}
+        </div>}
       </div>
 
       <div className="card-board p-5 space-y-3">

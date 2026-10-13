@@ -13,8 +13,13 @@ const corsHeaders = {
 };
 
 type IngestRequest = {
-  material_id: string;
-  storage_path: string;
+  material_id?: string;
+  storage_path?: string | null;
+  input_mode?: "pasted_text" | "uploaded_file";
+  preview_only?: boolean;
+  transcription_only?: boolean;
+  confirmed?: boolean;
+  reviewed_topics?: Array<{ name: string; reference?: string | null; level?: number; parentIndex?: number | null }>;
   extracted_text?: string | null;
   answer_extracted_text?: string | null;
   answer_storage_path?: string | null;
@@ -40,9 +45,6 @@ type ParsedQuestion = {
   answer_key: string;
   explanation: string | null;
   marks: number;
-  source_page?: number | null;
-  needs_review?: boolean;
-  ocr_confidence?: number | null;
 };
 
 type ParsedPaperDetails = {
@@ -70,6 +72,20 @@ function hasUsableExtractedText(text: string): boolean {
   const normalized = text.replace(/\s+/g, " ").trim();
   const letters = (normalized.match(/[A-Za-z]/g) || []).length;
   return normalized.length >= 80 && letters >= 20;
+}
+
+function hasReadableMaterialText(text: string): boolean {
+  const normalized = text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFD]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const words = normalized.match(/[A-Za-z]{2,}/g) || [];
+  const letters = (normalized.match(/[A-Za-z]/g) || []).length;
+  return normalized.length >= 40
+    && letters >= 20
+    && words.length >= 6
+    && letters / Math.max(normalized.length, 1) >= 0.25;
 }
 
 function hasEncodedPdfText(text: string): boolean {
@@ -116,24 +132,6 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
     throw new Error("No readable text was found in this PDF. Automatic OCR is unavailable because OPENAI_API_KEY is not configured for the ingest-material Edge Function.");
   }
 
-  const form = new FormData();
-  form.append("purpose", "user_data");
-  form.append("file", new File([pdfBytes], "scanned-material.pdf", { type: "application/pdf" }));
-  const uploadResponse = await fetch("https://api.openai.com/v1/files", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!uploadResponse.ok) {
-    const details = await uploadResponse.text();
-    console.error("Scanned PDF upload failed:", details);
-    throw new Error(`The OCR service could not accept this PDF (HTTP ${uploadResponse.status}).`);
-  }
-
-  const uploadedFile = await uploadResponse.json();
-  const fileId = typeof uploadedFile?.id === "string" ? uploadedFile.id : "";
-  if (!fileId) throw new Error("The OCR service accepted the PDF but did not return a file ID.");
-
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -142,6 +140,7 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
     },
     body: JSON.stringify({
       model: Deno.env.get("OPENAI_OCR_MODEL") || "gpt-4o-mini",
+      temperature: 0,
       input: [{
         role: "user",
         content: [
@@ -149,7 +148,11 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
             type: "input_text",
             text: "Transcribe all readable text from this PDF exactly. Preserve page order, headings, question numbers, answer choices, marks, and line breaks. Return only the transcription, with no commentary.",
           },
-          { type: "input_file", file_id: fileId },
+          {
+            type: "input_file",
+            filename: "scanned-material.pdf",
+            file_data: `data:application/pdf;base64,${base64Encode(pdfBytes)}`,
+          },
         ],
       }],
     }),
@@ -204,55 +207,94 @@ async function extractImageText(imageBytes: Uint8Array, mimeType: string): Promi
   return text;
 }
 
-type SyllabusTopic = { name: string; reference: string | null; level: number; parentIndex: number | null };
+type SyllabusTopic = {
+  name: string;
+  reference: string | null;
+  level: number;
+  parentIndex: number | null;
+};
 
 function syllabusTopics(text: string): SyllabusTopic[] {
   const topics: SyllabusTopic[] = [];
+  const seen = new Set<string>();
   const lastAtLevel: number[] = [];
-  const candidates = text
-    .split(/\r?\n/)
-    .map((line) => {
-      const cleaned = line.replace(/[\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim();
-      const numbered = cleaned.match(/^(\d+(?:\.\d+)*)[.)]?\s+(.+)$/);
-      return {
-        raw: cleaned,
-        reference: numbered?.[1] || null,
-        name: numbered?.[2]?.trim() || cleaned,
-        level: numbered ? numbered[1].split(".").length - 1 : 0,
-      };
-    })
-    .filter((line) => line.name.length >= 4 && line.name.length <= 100)
-    .filter((line) => !/^page\s+\d+/i.test(line.raw))
-    .filter((line) => !/^(contents|table of contents|introduction|references|appendix)$/i.test(line.name))
-    .map((line) => ({ ...line, name: line.name.replace(/^[-•*]\s+/, "").trim() }))
-    .filter((line) => /^[A-Za-z][A-Za-z0-9 &'(),:/-]*$/.test(line.name))
-    .filter((line) => {
-      const words = line.name.split(/\s+/);
-      const titleCase = words.filter((word) => /^[A-Z][A-Za-z'-]*$/.test(word)).length;
-      return words.length <= 12 && (titleCase >= Math.max(1, Math.ceil(words.length / 2)) || /^[A-Z0-9][A-Z0-9 &'(),:/-]+$/.test(line.name));
-    });
 
-  for (const candidate of candidates) {
-    if (/^(form|grade|chapter|unit)\s+\d+$/i.test(candidate.name)) continue;
-    const topicKey = candidate.name.toLowerCase().replace(/\s+/g, " ").trim();
-    if (topics.some((topic) => topic.name.toLowerCase().replace(/\s+/g, " ").trim() === topicKey)) continue;
-    const parentIndex = candidate.level > 0 ? (lastAtLevel[candidate.level - 1] ?? null) : null;
-    topics.push({ name: candidate.name, reference: candidate.reference, level: candidate.level, parentIndex });
-    lastAtLevel[candidate.level] = topics.length - 1;
-    lastAtLevel.length = candidate.level + 1;
+  const lines = text
+    .replace(/\f/g, "\n")
+    .split(/\r?\n/)
+    .map(line => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    // Only accept clearly numbered syllabus headings.
+    // Examples: 1. Numbers, 1.2 Integers, 1.2.1 Negative integers
+    const match = line.match(
+      /^(\d{1,2}(?:\.\d{1,2}){0,4})[.)]?\s+(.+)$/
+    );
+
+    if (!match) continue;
+
+    const reference = match[1];
+    const name = match[2]
+      .replace(/^[-•*]\s*/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const level = reference.split(".").length - 1;
+    const words = name.split(/\s+/);
+
+    // Reject fragments, long paragraphs, and likely extraction noise.
+    if (name.length < 5 || name.length > 90) continue;
+    if (words.length < 2 || words.length > 12) continue;
+    if (!/[A-Za-z]/.test(name)) continue;
+    if (!/[aeiou]/i.test(name)) continue;
+    if (/^(page|form|grade|chapter|unit|contents)\b/i.test(name)) continue;
+    if (/^[A-Z\s]+$/.test(name) && words.length < 2) continue;
+
+    const key = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+
+    const parentIndex =
+      level > 0 ? (lastAtLevel[level - 1] ?? null) : null;
+
+    topics.push({ name, reference, level, parentIndex });
+
+    lastAtLevel[level] = topics.length - 1;
+    lastAtLevel.length = level + 1;
+
+    if (topics.length >= 150) break;
   }
-  return topics.slice(0, 150);
+
+  return topics;
+}
+
+function normalizedTopicName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function validateReviewedTopics(topics: IngestRequest["reviewed_topics"]): string | null {
+  if (!topics?.length) return "The confirmed import must include the reviewed topic list.";
+  const names = new Set<string>();
+  for (let index = 0; index < topics.length; index++) {
+    const name = topics[index]?.name?.replace(/\s+/g, " ").trim() || "";
+    if (name.length < 2 || name.length > 160) return `Reviewed topic ${index + 1} has an invalid name.`;
+    const key = normalizedTopicName(name);
+    if (names.has(key)) return `Reviewed topics contain a duplicate name: ${name}`;
+    names.add(key);
+    const parentIndex = topics[index]?.parentIndex;
+    if (parentIndex !== null && parentIndex !== undefined && (!Number.isInteger(parentIndex) || parentIndex < 0 || parentIndex >= index)) {
+      return `Reviewed topic ${name} has an invalid parent relationship.`;
+    }
+  }
+  return null;
 }
 
 function parsePastPaperQuestions(text: string): ParsedQuestion[] {
-  let page = 1;
-  const linesWithPages = text.split(/\r?\n/).flatMap((line) => line.split("\f").map((part, index) => {
-    if (index > 0) page += 1;
-    return { line: part.replace(/\s+/g, " ").trim(), page };
-  })).filter((item) => item.line);
-  const lines = linesWithPages.map((item) => item.line);
+  const lines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
   const starts = lines
-    .map((line, index) => ({ line, index, page: linesWithPages[index].page, match: line.match(/^(\d{1,3})[.)]\s+(.*)$/) }))
+    .map((line, index) => ({ line, index, match: line.match(/^(\d{1,3})[.)]\s+(.*)$/) }))
     .filter((item) => item.match);
   const questions: ParsedQuestion[] = [];
 
@@ -278,11 +320,12 @@ function parsePastPaperQuestions(text: string): ParsedQuestion[] {
       answer_key: "",
       explanation: null,
       marks: marksMatch ? Number(marksMatch[1]) : 1,
-      source_page: current.page,
     });
   }
 
-  return questions.filter((question, index, all) => index === all.findIndex((candidate) => candidate.question_number === question.question_number)).slice(0, 200);
+  return questions
+    .filter((question, index, all) => index === all.findIndex((candidate) => candidate.question_number === question.question_number))
+    .slice(0, 200);
 }
 
 function parsePastPaperAnswers(text: string): Map<number, { answer_key: string; explanation: string }> {
@@ -348,7 +391,32 @@ Deno.serve(async (req: Request) => {
     if (!canIngest) return response({ error: "Admin or approved teacher access required" }, 403);
 
     const body = await req.json() as IngestRequest;
-    if (!body.material_id || !body.storage_path) return response({ error: "material_id and storage_path are required" }, 400);
+    const pastedText = body.extracted_text?.trim() || "";
+    const isSyllabus = body.material_type === "curriculum" || body.material_type === "syllabus";
+    if (!body.input_mode || !["pasted_text", "uploaded_file"].includes(body.input_mode)) {
+      return response({ error: "input_mode must be pasted_text or uploaded_file" }, 400);
+    }
+    if (body.input_mode === "pasted_text" && !pastedText) return response({ error: "Pasted text is required for pasted_text input" }, 400);
+    if (body.input_mode === "uploaded_file" && !body.storage_path && !body.preview_only) return response({ error: "Uploaded file storage_path is required" }, 400);
+    if (body.preview_only) {
+      if (!pastedText) return response({ error: "Paste syllabus text before previewing." }, 400);
+      if (!isSyllabus) {
+        return response({ error: "Preview is only available for syllabus material." }, 400);
+      }
+      const previewTopics = syllabusTopics(pastedText);
+      return response({
+        success: true,
+        extracted_characters: pastedText.length,
+        topics: previewTopics,
+      });
+    }
+    if (!body.material_id) return response({ error: "material_id is required" }, 400);
+    if (isSyllabus && !body.transcription_only && !body.confirmed) return response({ error: "Syllabus import requires explicit confirmation." }, 400);
+    if (isSyllabus && !body.transcription_only) {
+      const reviewedTopicError = validateReviewedTopics(body.reviewed_topics);
+      if (reviewedTopicError) return response({ error: reviewedTopicError }, 400);
+    }
+    if (!body.storage_path && !pastedText) return response({ error: "A stored file or extracted text is required" }, 400);
 
     const { data: materialRecord, error: materialLookupError } = await adminClient
       .from("content_materials")
@@ -357,25 +425,37 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (materialLookupError) throw materialLookupError;
     if (!materialRecord) throw new Error("Uploaded material record was not found.");
+    if (materialRecord.material_type !== body.material_type) throw new Error("Material type does not match the material record.");
     const subjectId = materialRecord.subject_id || body.subject_id;
     const materialGrade = materialRecord.grade || body.grade;
 
-    const { data: file, error: downloadError } = await adminClient.storage.from("content-materials").download(body.storage_path);
-    if (downloadError || !file) throw new Error(downloadError?.message || "Could not download uploaded PDF");
+    let extractedText = pastedText;
+    if (!extractedText) {
+      const { data: file, error: downloadError } = await adminClient.storage.from("content-materials").download(body.storage_path!);
+      if (downloadError || !file) throw new Error(downloadError?.message || "Could not download uploaded PDF");
 
-    const pdfBytes = new Uint8Array(await file.arrayBuffer());
-    const mimeType = file.type || (body.file_type === "image" ? "image/png" : "application/pdf");
-    let extractionMethod = body.extracted_text?.trim() ? "provided" : body.file_type === "image" ? "ocr" : "native_pdf";
-    let usedOcr = body.file_type === "image";
-    let extractedText = body.extracted_text?.trim() || (body.file_type === "image"
-      ? await extractImageText(pdfBytes, mimeType)
-      : await extractSelectableText(pdfBytes));
-    if (hasEncodedPdfText(extractedText)) {
-      extractedText = decodeEncodedPdfText(extractedText);
-    } else if (body.force_ocr || !hasUsableExtractedText(extractedText)) {
-      extractedText = await extractScannedPdfText(pdfBytes);
-      extractionMethod = "ocr";
-      usedOcr = true;
+      const pdfBytes = new Uint8Array(await file.arrayBuffer());
+      const mimeType = file.type || (body.file_type === "image" ? "image/png" : "application/pdf");
+      extractedText = body.file_type === "image"
+        ? await extractImageText(pdfBytes, mimeType)
+        : await extractSelectableText(pdfBytes);
+      if (hasEncodedPdfText(extractedText)) {
+        // Do not blindly decode potentially corrupted PDF font mappings.
+        extractedText = await extractScannedPdfText(pdfBytes);
+      } else if (
+        body.force_ocr ||
+        !hasUsableExtractedText(extractedText) ||
+        !hasReadableMaterialText(extractedText)
+      ) {
+        extractedText = await extractScannedPdfText(pdfBytes);
+      }
+    }
+
+    if (!hasReadableMaterialText(extractedText)) {
+      throw new Error(
+        "The extracted text failed readability checks. " +
+        "No syllabus topics should be generated until the PDF text is corrected."
+      );
     }
 
     let answerText = body.answer_extracted_text?.trim() || "";
@@ -388,23 +468,22 @@ Deno.serve(async (req: Request) => {
     }
 
     const summary = extractedText.slice(0, 4000);
-    const { error: materialError } = await adminClient.from("content_materials").update({
-      storage_path: body.storage_path,
-      topic_id: body.topic_id || null,
-      extracted_text: extractedText,
-      content_summary: summary,
-      status: usedOcr ? "pending" : "approved",
-      ingestion_method: extractionMethod,
-      ingestion_confidence: usedOcr ? null : 0.98,
-      needs_review: usedOcr,
-      ingestion_error: null,
-    }).eq("id", body.material_id);
-    if (materialError) throw materialError;
-
-    const embedding = await generateEmbedding(extractedText);
-    if (embedding) {
-      const { error: embeddingError } = await adminClient.from("content_materials").update({ embedding }).eq("id", body.material_id);
-      if (embeddingError) throw embeddingError;
+    let embedding: number[] | null = null;
+    if (!isSyllabus || body.transcription_only) {
+      const { error: materialError } = await adminClient.from("content_materials").update({
+        storage_path: body.storage_path || null,
+        topic_id: body.topic_id || null,
+        extracted_text: extractedText,
+        content_summary: summary,
+        status: "ingested",
+        ingestion_error: null,
+      }).eq("id", body.material_id);
+      if (materialError) throw materialError;
+      embedding = await generateEmbedding(extractedText);
+      if (embedding) {
+        const { error: embeddingError } = await adminClient.from("content_materials").update({ embedding }).eq("id", body.material_id);
+        if (embeddingError) throw embeddingError;
+      }
     }
 
     let questionsCreated = 0;
@@ -490,8 +569,6 @@ Deno.serve(async (req: Request) => {
         const { error } = await adminClient.from("past_paper_questions").insert({
           past_paper_id: createdPastPaperId,
           ...question,
-          needs_review: usedOcr,
-          ocr_confidence: usedOcr ? null : 0.98,
         });
         if (!error) questionsCreated++;
       }
@@ -518,82 +595,30 @@ Deno.serve(async (req: Request) => {
     }
 
     let topicsCreated = 0;
-    if (body.material_type === "curriculum" || body.material_type === "syllabus") {
-      const topics = syllabusTopics(extractedText);
+    if (isSyllabus && !body.transcription_only) {
       if (!subjectId || !materialGrade) throw new Error("A syllabus must have a subject and Form before topics can be generated.");
-
-      const insertedTopics: { id: string }[] = [];
-      for (const topic of topics) {
-        const topicPayload = {
-          subject_id: subjectId,
-          grade: materialGrade,
-          name: topic.name,
-          category: topic.level > 0 ? "Subtopic" : "Topic",
-          syllabus_reference: topic.reference || body.storage_path,
-          description: `Derived from uploaded syllabus: ${topic.name}`,
-          display_order: topicsCreated,
-          source_material_id: body.material_id,
-        };
-        const { data: existing, error: lookupError } = await adminClient.from("topics")
-          .select("id")
-          .eq("subject_id", subjectId)
-          .eq("grade", materialGrade)
-          .eq("name", topic.name)
-          .maybeSingle();
-        if (lookupError) throw lookupError;
-        const { data: inserted, error } = existing
-          ? await adminClient.from("topics").update(topicPayload).eq("id", existing.id).select("id").single()
-          : await adminClient.from("topics").insert(topicPayload).select("id").single();
-        if (error || !inserted) throw error || new Error(`Could not create syllabus topic: ${topic.name}`);
-        insertedTopics.push(inserted);
-        if (!existing) topicsCreated++;
-      }
-
-      for (let index = 0; index < topics.length; index++) {
-        const parentIndex = topics[index].parentIndex;
-        if (parentIndex === null) continue;
-        const { error } = await adminClient.from("topics")
-          .update({ parent_topic_id: insertedTopics[parentIndex].id })
-          .eq("id", insertedTopics[index].id);
-        if (error) throw error;
-      }
-
-      // Give every syllabus topic an immediately usable lesson. The lesson
-      // stays deliberately grounded in the topic name; the AI teacher uses
-      // the embedded syllabus material above to supply the actual teaching
-      // explanation and examples for the pupil's question.
-      for (let index = 0; index < topics.length; index++) {
-        const topic = topics[index];
-        const lessonPayload = {
-          topic_id: insertedTopics[index].id,
-          title: `Understanding ${topic.name}`,
-          difficulty: "standard",
-          display_order: 0,
-          content: {
-            intro: `This lesson is based on the uploaded syllabus topic: ${topic.name}. We will build the idea carefully and connect it to the Zambian curriculum.`,
-            steps: [{
-              title: topic.name,
-              body: `Let us begin with ${topic.name}. Ask me about any word, rule, process, or example from this syllabus topic and I will explain it step by step.`,
-              board: topic.name,
-            }],
-            examples: [],
-            summary: `Review the key ideas in ${topic.name} and answer the teacher's check-in before moving on.`,
-          },
-        };
-        const { data: existingLesson, error: lessonLookupError } = await adminClient.from("lessons")
-          .select("id")
-          .eq("topic_id", insertedTopics[index].id)
-          .eq("title", lessonPayload.title)
-          .maybeSingle();
-        if (lessonLookupError) throw lessonLookupError;
-        const { error } = existingLesson
-          ? await adminClient.from("lessons").update(lessonPayload).eq("id", existingLesson.id)
-          : await adminClient.from("lessons").insert(lessonPayload);
-        if (error) throw error;
+      const reviewedTopics = body.reviewed_topics!;
+      const { data: importResult, error: importError } = await adminClient.rpc("import_reviewed_syllabus", {
+        p_material_id: body.material_id,
+        p_subject_id: subjectId,
+        p_grade: materialGrade,
+        p_actor_id: userData.user.id,
+        p_storage_path: body.storage_path || null,
+        p_extracted_text: extractedText,
+        p_content_summary: summary,
+        p_topics: reviewedTopics,
+        p_confirmed: body.confirmed === true,
+      });
+      if (importError) throw importError;
+      topicsCreated = Number(importResult?.topics_created || 0);
+      embedding = await generateEmbedding(extractedText);
+      if (embedding) {
+        const { error: embeddingError } = await adminClient.from("content_materials").update({ embedding }).eq("id", body.material_id);
+        if (embeddingError) console.error("Syllabus embedding update failed; keyword retrieval remains available:", embeddingError);
       }
     }
 
-    return response({ success: true, review_required: usedOcr, extracted_characters: extractedText.length, embedding_created: Boolean(embedding), topics_created: topicsCreated, questions_created: questionsCreated, past_paper_id: createdPastPaperId });
+    return response({ success: true, extracted_characters: extractedText.length, embedding_created: Boolean(embedding), topics_created: topicsCreated, questions_created: questionsCreated, past_paper_id: createdPastPaperId });
   } catch (error) {
     console.error("Material ingestion error:", error);
     const message = error instanceof Error ? error.message : "Material ingestion failed";
@@ -604,8 +629,9 @@ Deno.serve(async (req: Request) => {
       if (body.material_id && supabaseUrl && serviceRoleKey) {
         await createClient(supabaseUrl, serviceRoleKey)
           .from("content_materials")
-          .update({ storage_path: body.storage_path || null, status: "pending", needs_review: true, ingestion_error: message })
-          .eq("id", body.material_id);
+          .update({ storage_path: body.storage_path || null, status: "failed", ingestion_error: message })
+          .eq("id", body.material_id)
+          .neq("status", "ingested");
       }
     } catch {
       // Preserve the original ingestion error if diagnostic persistence fails.
