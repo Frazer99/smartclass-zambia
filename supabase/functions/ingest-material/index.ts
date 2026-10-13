@@ -1,4 +1,5 @@
 import pdfModule from "npm:pdf-parse@1.1.1";
+import JSZip from "npm:jszip@3.10.1";
 import { createClient } from "npm:@supabase/supabase-js@2.58.0";
 import { generateEmbedding } from "../_shared/embeddings.ts";
 
@@ -25,7 +26,7 @@ type IngestRequest = {
   answer_storage_path?: string | null;
   solution_video_storage_path?: string | null;
   force_ocr?: boolean;
-  file_type?: "pdf" | "image";
+  file_type?: "pdf" | "docx" | "image";
   past_paper_id?: string | null;
   subject_id?: string | null;
   topic_id?: string | null;
@@ -204,6 +205,23 @@ async function extractImageText(imageBytes: Uint8Array, mimeType: string): Promi
   const data = await response.json();
   const text = typeof data.output_text === "string" ? data.output_text.trim() : "";
   if (!text) throw new Error("No readable text was found in the uploaded image.");
+  return text;
+}
+
+async function extractDocxText(docxBytes: Uint8Array): Promise<string> {
+  const archive = await JSZip.loadAsync(docxBytes);
+  const documentFile = archive.file("word/document.xml");
+  if (!documentFile) throw new Error("The Word document does not contain readable document content.");
+  const xml = await documentFile.async("string");
+  const document = new DOMParser().parseFromString(xml, "application/xml");
+  if (!document) throw new Error("The Word document could not be parsed.");
+
+  const paragraphs = Array.from(document.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", "p"));
+  const text = paragraphs.map((paragraph) => {
+    const runs = Array.from(paragraph.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", "t"));
+    return runs.map((run) => run.textContent || "").join("");
+  }).filter(Boolean).join("\n").trim();
+  if (!text) throw new Error("No readable text was found in the Word document.");
   return text;
 }
 
@@ -409,12 +427,14 @@ Deno.serve(async (req: Request) => {
         const { data: previewFile, error: previewDownloadError } = await adminClient.storage.from("content-materials").download(body.storage_path);
         if (previewDownloadError || !previewFile) throw new Error(previewDownloadError?.message || "Could not download the file for preview.");
         const previewBytes = new Uint8Array(await previewFile.arrayBuffer());
-        const previewMimeType = previewFile.type || (body.file_type === "image" ? "image/png" : "application/pdf");
+        const previewMimeType = previewFile.type || (body.file_type === "image" ? "image/png" : body.file_type === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/pdf");
         previewText = body.file_type === "image"
           ? await extractImageText(previewBytes, previewMimeType)
-          : await extractSelectableText(previewBytes);
+          : body.file_type === "docx"
+            ? await extractDocxText(previewBytes)
+            : await extractSelectableText(previewBytes);
         if (!hasReadableMaterialText(previewText)) {
-          if (body.file_type === "image") throw new Error("The image OCR result was not readable enough to preview.");
+          if (body.file_type === "image" || body.file_type === "docx") throw new Error("The uploaded file was not readable enough to preview.");
           previewText = await extractScannedPdfText(previewBytes);
         }
       }
@@ -451,20 +471,24 @@ Deno.serve(async (req: Request) => {
       const { data: file, error: downloadError } = await adminClient.storage.from("content-materials").download(body.storage_path!);
       if (downloadError || !file) throw new Error(downloadError?.message || "Could not download uploaded PDF");
 
-      const pdfBytes = new Uint8Array(await file.arrayBuffer());
-      const mimeType = file.type || (body.file_type === "image" ? "image/png" : "application/pdf");
+      const fileBytes = new Uint8Array(await file.arrayBuffer());
+      const mimeType = file.type || (body.file_type === "image" ? "image/png" : body.file_type === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/pdf");
       extractedText = body.file_type === "image"
-        ? await extractImageText(pdfBytes, mimeType)
-        : await extractSelectableText(pdfBytes);
-      if (hasEncodedPdfText(extractedText)) {
+        ? await extractImageText(fileBytes, mimeType)
+        : body.file_type === "docx"
+          ? await extractDocxText(fileBytes)
+          : await extractSelectableText(fileBytes);
+      if (body.file_type === "docx") {
+        if (!hasReadableMaterialText(extractedText)) throw new Error("The Word document text was not readable enough to import.");
+      } else if (hasEncodedPdfText(extractedText)) {
         // Do not blindly decode potentially corrupted PDF font mappings.
-        extractedText = await extractScannedPdfText(pdfBytes);
+        extractedText = await extractScannedPdfText(fileBytes);
       } else if (
         body.force_ocr ||
         !hasUsableExtractedText(extractedText) ||
         !hasReadableMaterialText(extractedText)
       ) {
-        extractedText = await extractScannedPdfText(pdfBytes);
+        extractedText = await extractScannedPdfText(fileBytes);
       }
     }
 

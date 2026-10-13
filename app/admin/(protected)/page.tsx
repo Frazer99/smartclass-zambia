@@ -928,21 +928,22 @@ export default function AdminPage() {
   const handleSyllabusPreview = async () => {
     const { subject_id, grade, file, text } = syllabusUpload;
     if (!subject_id || !grade) { toast.error('Subject and Form are required before previewing.'); return; }
-    if (!file && !text?.trim()) { toast.error('Paste syllabus text or select a PDF file first.'); return; }
+    if (!file && !text?.trim()) { toast.error('Paste syllabus text or select a syllabus file first.'); return; }
     if (file && syllabusUpload.input_method === 'pdf' && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { toast.error('Only PDF files can be uploaded in PDF mode.'); return; }
+    if (file && syllabusUpload.input_method === 'docx' && file.type !== 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && !/\.docx$/i.test(file.name)) { toast.error('Only DOCX Word files can be uploaded in Word mode.'); return; }
     if (file && syllabusUpload.input_method === 'txt' && file.type !== 'text/plain' && !/\.txt$/i.test(file.name)) { toast.error('Only TXT files can be uploaded in TXT mode.'); return; }
     if (file && syllabusUpload.input_method === 'image' && !file.type.startsWith('image/')) { toast.error('Only PNG, JPG, or WEBP images can be uploaded in image mode.'); return; }
     setUploadingSyllabus(true);
     let previewStoragePath: string | null = null;
     try {
       let extractedText = text?.trim() || (syllabusUpload.input_method === 'txt' ? await file.text() : syllabusUpload.input_method === 'pdf' ? await extractPdfTextLocally(file) : '');
-      if (syllabusUpload.input_method === 'image') {
+      if (syllabusUpload.input_method === 'image' || syllabusUpload.input_method === 'docx') {
         previewStoragePath = `preview/${createClientId()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const { error: uploadError } = await supabase.storage.from('content-materials').upload(previewStoragePath, file, { contentType: file.type, upsert: false });
-        if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
+        if (uploadError) throw new Error(`File upload failed: ${uploadError.message}`);
       }
       const { data, error } = await supabase.functions.invoke('ingest-material', {
-        body: { preview_only: true, input_mode: file ? 'uploaded_file' : 'pasted_text', storage_path: previewStoragePath, file_type: syllabusUpload.input_method === 'image' ? 'image' : 'pdf', extracted_text: extractedText, subject_id, grade: Number(grade), material_type: 'syllabus' },
+        body: { preview_only: true, input_mode: file ? 'uploaded_file' : 'pasted_text', storage_path: previewStoragePath, file_type: syllabusUpload.input_method === 'image' ? 'image' : syllabusUpload.input_method === 'docx' ? 'docx' : 'pdf', extracted_text: extractedText, subject_id, grade: Number(grade), material_type: 'syllabus' },
       });
       if (error) throw new Error(await edgeFunctionErrorMessage(error, 'The syllabus could not be previewed.'));
       if (!data?.success || !Array.isArray(data.topics) || data.topics.length === 0) {
@@ -962,6 +963,7 @@ export default function AdminPage() {
     const { subject_id, grade, file, extracted_text: extractedText, preview_topics: previewTopics } = syllabusUpload;
     if (!subject_id || !grade || !extractedText || !previewTopics?.length) { toast.error('Preview the syllabus and review at least one topic before importing.'); return; }
     if (file && syllabusUpload.input_method === 'pdf' && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { toast.error('Only PDF files can be uploaded in PDF mode.'); return; }
+    if (file && syllabusUpload.input_method === 'docx' && file.type !== 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && !/\.docx$/i.test(file.name)) { toast.error('Only DOCX Word files can be uploaded in Word mode.'); return; }
     if (file && syllabusUpload.input_method === 'txt' && file.type !== 'text/plain' && !/\.txt$/i.test(file.name)) { toast.error('Only TXT files can be uploaded in TXT mode.'); return; }
     if (file && syllabusUpload.input_method === 'image' && !file.type.startsWith('image/')) { toast.error('Only PNG, JPG, or WEBP images can be uploaded in image mode.'); return; }
     setUploadingSyllabus(true);
@@ -972,7 +974,7 @@ export default function AdminPage() {
       const title = syllabusUpload.title || `${subjects.find((subject) => subject.id === subject_id)?.name || 'Curriculum'} Syllabus Form ${grade}`;
       const extractedText = syllabusUpload.extracted_text?.trim()
         || syllabusUpload.text?.trim()
-        || (syllabusUpload.input_method === 'txt' ? await file.text() : await extractPdfTextLocally(file));
+        || (syllabusUpload.input_method === 'txt' ? await file.text() : '');
       const { data: material, error: materialError } = await supabase.functions.invoke('content-materials', {
         body: { title, source: 'Admin syllabus upload', material_type: 'syllabus', subject_id, grade: Number(grade), status: 'approved' },
       });
@@ -980,12 +982,12 @@ export default function AdminPage() {
       materialId = material.data.id;
       if (file) {
         storagePath = `${createClientId()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, file, { contentType: file.type || (syllabusUpload.input_method === 'txt' ? 'text/plain' : 'application/pdf'), upsert: false });
+        const { error: uploadError } = await supabase.storage.from('content-materials').upload(storagePath, file, { contentType: file.type || (syllabusUpload.input_method === 'txt' ? 'text/plain' : syllabusUpload.input_method === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf'), upsert: false });
         if (uploadError) throw uploadError;
       }
       ingestionStarted = true;
       const { data: ingestResult, error: ingestError } = await supabase.functions.invoke('ingest-material', {
-        body: { material_id: material.data.id, storage_path: storagePath, input_mode: file ? 'uploaded_file' : 'pasted_text', file_type: syllabusUpload.input_method === 'image' ? 'image' : 'pdf', extracted_text: extractedText, reviewed_topics: previewTopics, confirmed: true, subject_id, grade: Number(grade), material_type: 'syllabus' },
+        body: { material_id: material.data.id, storage_path: storagePath, input_mode: file ? 'uploaded_file' : 'pasted_text', file_type: syllabusUpload.input_method === 'image' ? 'image' : syllabusUpload.input_method === 'docx' ? 'docx' : 'pdf', extracted_text: extractedText, reviewed_topics: previewTopics, confirmed: true, subject_id, grade: Number(grade), material_type: 'syllabus' },
       });
       if (ingestError) throw new Error(`Syllabus processing failed: ${await edgeFunctionErrorMessage(ingestError, 'The syllabus PDF could not be processed.')}`);
       if (!ingestResult?.success || !ingestResult.extracted_characters) throw new Error('Syllabus was uploaded but could not be indexed for AI use.');

@@ -56,18 +56,18 @@ export function CurriculumTab({
           <Upload className="h-5 w-5 text-gold" />
           <div>
             <h3 className="font-display text-lg font-semibold text-chalk">Prepare syllabus import</h3>
-            <p className="text-xs text-muted-board">Paste text or upload a PDF, preview the detected topics, then confirm the import.</p>
+            <p className="text-xs text-muted-board">Paste text or upload a PDF, Word document, text file, or image, preview the detected topics, then confirm the import.</p>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Subject" required><select className="form-input" value={syllabusUpload.subject_id} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, subject_id: e.target.value })}><option value="">Select subject...</option>{subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
           <Field label="Form" required><select className="form-input" value={syllabusUpload.grade} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, grade: e.target.value })}><option value="">Select form...</option>{[1, 2, 3, 4, 5, 6].map((g) => <option key={g} value={g}>Form {g}</option>)}</select></Field>
-          <Field label="Input method"><select className="form-input" value={syllabusUpload.input_method} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, input_method: e.target.value, file: null, text: '', extracted_text: '', preview_topics: [] })}><option value="paste">Paste text</option><option value="pdf">Upload PDF</option><option value="txt">Upload TXT</option><option value="image">Upload image</option></select></Field>
+          <Field label="Input method"><select className="form-input" value={syllabusUpload.input_method} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, input_method: e.target.value, file: null, text: '', extracted_text: '', preview_topics: [] })}><option value="paste">Paste text</option><option value="pdf">Upload PDF</option><option value="docx">Upload Word document</option><option value="txt">Upload TXT</option><option value="image">Upload image</option></select></Field>
         </div>
         {syllabusUpload.input_method === 'paste' ? (
           <Field label="Syllabus text" required><textarea className="form-input min-h-40" value={syllabusUpload.text} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, text: e.target.value, extracted_text: '', preview_topics: [] })} placeholder="Paste the syllabus text here, including numbered topic headings and subtopics." /></Field>
         ) : (
-          <Field label={`${syllabusUpload.input_method.toUpperCase()} file`} required><input className="form-input text-xs" type="file" accept={syllabusUpload.input_method === 'txt' ? 'text/plain,.txt' : syllabusUpload.input_method === 'image' ? 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp' : 'application/pdf,.pdf'} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, file: e.target.files?.[0] || null, text: '', extracted_text: '', preview_topics: [] })} /></Field>
+          <Field label="Syllabus file" required><input className="form-input text-xs" type="file" accept={syllabusUpload.input_method === 'txt' ? 'text/plain,.txt' : syllabusUpload.input_method === 'image' ? 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp' : syllabusUpload.input_method === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx' : 'application/pdf,.pdf'} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, file: e.target.files?.[0] || null, text: '', extracted_text: '', preview_topics: [] })} /></Field>
         )}
         <Field label="Title"><input className="form-input" value={syllabusUpload.title} onChange={(e) => setSyllabusUpload({ ...syllabusUpload, title: e.target.value })} placeholder="e.g. Mathematics Syllabus Form 3" /></Field>
         <button onClick={onSyllabusUpload} disabled={uploadingSyllabus || !syllabusUpload.preview_topics?.length} className="btn-gold flex items-center gap-1.5 text-sm px-4 py-2 disabled:opacity-50">
@@ -104,7 +104,7 @@ export function CurriculumTab({
       <div className="card-board p-5 space-y-3">
         <div>
           <h3 className="font-display text-lg font-semibold text-chalk">Uploaded syllabi</h3>
-          <p className="text-xs text-muted-board">View the original PDF or remove it with all generated curriculum content.</p>
+          <p className="text-xs text-muted-board">View the original file or remove it with all generated curriculum content.</p>
         </div>
         <div className="max-h-[34rem] space-y-4 overflow-y-auto pr-1">{syllabusByForm.map(({ grade, materials: formMaterials }) => (
           <div key={grade} className="border-t border-white/10 pt-3">
@@ -122,7 +122,7 @@ export function CurriculumTab({
                 const { data } = await supabase.storage.from('content-materials').createSignedUrl(material.storage_path!, 300);
                 if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
               }} className="inline-flex items-center gap-1.5 border border-white/15 rounded-lg px-3 py-2 text-xs text-chalk hover:border-gold transition-colors">
-                <ExternalLink className="h-3.5 w-3.5" /> View PDF
+                <ExternalLink className="h-3.5 w-3.5" /> View file
               </button>}
               <button type="button" onClick={() => onDeleteSyllabus(material.id)} className="inline-flex items-center gap-1.5 border border-rust/40 rounded-lg px-3 py-2 text-xs text-rust hover:bg-rust/10 transition-colors">
                 <Trash2 className="h-3.5 w-3.5" /> Delete syllabus
