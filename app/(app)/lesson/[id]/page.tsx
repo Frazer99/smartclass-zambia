@@ -722,7 +722,7 @@ export default function LessonPage() {
                     className={`animate-write-in rounded-lg p-3 ${
                       item.type === 'heading'
                         ? 'bg-gold/10 text-gold font-bold text-xs uppercase tracking-widest'
-                        : 'bg-white/5 text-chalk font-hand text-lg'
+                        : 'bg-white/5 text-chalk font-hand text-base'
                     }`}
                   >
                     {item.content}
