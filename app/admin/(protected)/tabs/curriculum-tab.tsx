@@ -31,6 +31,22 @@ export function CurriculumTab({
   const filteredTopics = curriculumSubjectFilter
     ? topics.filter((t) => t.subject_id === curriculumSubjectFilter)
     : topics;
+  const topicDepth = (topic: Topic): number => {
+    let depth = 0;
+    let parentId = topic.parent_topic_id;
+    const visited = new Set<string>();
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = filteredTopics.find((candidate) => candidate.id === parentId);
+      if (!parent) break;
+      depth += 1;
+      parentId = parent.parent_topic_id;
+    }
+    return depth;
+  };
+  const orderedTopics = filteredTopics
+    .map((topic, index) => ({ topic, index, depth: topicDepth(topic) }))
+    .sort((left, right) => left.topic.display_order - right.topic.display_order || left.index - right.index);
 
   const subjectStats = subjects.map((s) => {
     const sTopics = topics.filter((t) => t.subject_id === s.id);
@@ -83,15 +99,15 @@ export function CurriculumTab({
             <h4 className="text-sm font-semibold text-chalk">Review detected topics</h4>
             <p className="text-xs text-muted-board">Edit names or references, and remove anything that is not a curriculum topic.</p>
           </div>
-          {syllabusUpload.preview_topics.map((topic: any, index: number) => <div key={`${topic.reference || 'topic'}-${index}`} className="grid gap-2 sm:grid-cols-[5rem_1fr_8rem_auto] items-center">
+          {syllabusUpload.preview_topics.map((topic: any, index: number) => <div key={`${topic.reference || 'topic'}-${index}`} className="grid gap-2 sm:grid-cols-[5rem_1fr_8rem_auto] items-center" style={{ marginLeft: `${Math.min(topic.level || 0, 4) * 1.25}rem` }}>
             <input className="form-input text-xs" value={topic.reference || ''} onChange={(e) => {
               const preview_topics = syllabusUpload.preview_topics.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, reference: e.target.value || null } : item);
               setSyllabusUpload({ ...syllabusUpload, preview_topics });
             }} placeholder="Ref." />
-            <input className="form-input text-sm" value={topic.name} onChange={(e) => {
+            <div className="flex items-center gap-2 min-w-0"><span className="shrink-0 text-[10px] uppercase tracking-wide text-gold">{topic.level > 0 ? 'Subtopic' : 'Main topic'}</span><input className="form-input text-sm min-w-0" value={topic.name} onChange={(e) => {
               const preview_topics = syllabusUpload.preview_topics.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, name: e.target.value } : item);
               setSyllabusUpload({ ...syllabusUpload, preview_topics });
-            }} />
+            }} /></div>
             <select className="form-input text-xs" value={topic.level ?? 0} onChange={(e) => {
               const preview_topics = syllabusUpload.preview_topics.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, level: Number(e.target.value), parentIndex: null } : item);
               setSyllabusUpload({ ...syllabusUpload, preview_topics });
@@ -191,15 +207,16 @@ export function CurriculumTab({
         {filteredTopics.length === 0 ? (
           <div className="card-board p-8 text-center text-muted-board text-sm">No topics found.</div>
         ) : (
-          filteredTopics.map((topic) => {
+          orderedTopics.map(({ topic, depth }) => {
             const tLessons = lessons.filter((l) => l.topic_id === topic.id);
             const subj = subjects.find((s) => s.id === topic.subject_id);
             return (
-              <div key={topic.id} className="card-board p-4">
+              <div key={topic.id} className="card-board p-4" style={{ marginLeft: `${Math.min(depth, 4) * 1.25}rem` }}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       {subj && <span className="text-xs font-semibold rounded-full px-2 py-0.5" style={{ background: `${subj.color}25`, color: subj.color }}>{subj.name}</span>}
+                      <span className="text-[10px] uppercase tracking-wide text-gold">{depth > 0 ? 'Subtopic' : 'Main topic'}</span>
                       <span className="text-xs text-muted-board">{topic.category}</span>
                       <span className="text-xs text-muted-board font-mono-sc">Form {topic.grade}</span>
                     </div>
