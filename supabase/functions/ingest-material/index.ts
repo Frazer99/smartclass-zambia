@@ -335,6 +335,10 @@ function normalizedTopicName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function normalizePastPaperGrade(grade: number): number {
+  return grade >= 1 && grade <= 6 ? grade + 7 : grade;
+}
+
 function validateReviewedTopics(topics: IngestRequest["reviewed_topics"]): string | null {
   if (!topics?.length) return "The confirmed import must include the reviewed topic list.";
   const names = new Set<string>();
@@ -587,6 +591,12 @@ Deno.serve(async (req: Request) => {
           !details.year ? "year" : null,
         ].filter(Boolean).join(", ");
         throw new Error(`Could not identify ${missing} from the PDF. Include those details in the paper header or filename.`);
+      }
+      // The UI accepts internal Forms 1-6, while past_papers stores the
+      // corresponding official Grade 8-12 values.
+      details.grade = normalizePastPaperGrade(details.grade);
+      if (details.grade < 8 || details.grade > 12) {
+        throw new Error("Past paper Form/Grade must be Form 1-6 or Grade 8-12.");
       }
       const { data: subject } = await adminClient.from("subjects").select("id").ilike("name", details.subjectName).maybeSingle();
       if (!subject?.id) throw new Error(`Could not identify the subject from the paper. Detected: ${details.subjectName}`);

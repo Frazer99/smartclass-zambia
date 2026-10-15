@@ -70,7 +70,7 @@ export function PastPapersTab({
               <option value="">Subject (auto-detect)</option>
               {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
             </select>
-            <input className="form-input" type="number" min="1" max="12" placeholder="Form / Grade" value={paperForm.grade} onChange={(e) => setPaperForm({ ...paperForm, grade: e.target.value })} />
+            <input className="form-input" type="number" min="1" max="12" placeholder="Form 1-6 or Grade 8-12" value={paperForm.grade} onChange={(e) => setPaperForm({ ...paperForm, grade: e.target.value })} />
             <input className="form-input" type="number" min="1900" max="2100" placeholder="Year (auto-detect)" value={paperForm.year} onChange={(e) => setPaperForm({ ...paperForm, year: e.target.value })} />
           </div>
           <input className="form-input" placeholder="Paper title (optional)" value={paperForm.title} onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })} />
@@ -116,4 +116,3 @@ export function PastPapersTab({
     </div>
   );
 }
-
