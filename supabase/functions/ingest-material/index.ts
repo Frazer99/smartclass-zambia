@@ -147,7 +147,7 @@ async function extractScannedPdfText(pdfBytes: Uint8Array): Promise<string> {
         content: [
           {
             type: "input_text",
-            text: "Transcribe all readable text from this PDF exactly. Preserve page order, headings, question numbers, answer choices, marks, and line breaks. Return only the transcription, with no commentary.",
+            text: "Transcribe all readable text from this PDF exactly. Preserve page order, headings, question numbers, answer choices, marks, and line breaks. Keep the original numbering and lettering of topics and subtopics (for example 1., 1.1, a), i.) exactly as printed, with each heading on its own line. Return only the transcription, with no commentary.",
           },
           {
             type: "input_file",
@@ -196,7 +196,7 @@ async function extractImageText(imageBytes: Uint8Array, mimeType: string): Promi
       model: Deno.env.get("OPENAI_OCR_MODEL") || "gpt-4o-mini",
       temperature: 0,
       input: [{ role: "user", content: [
-        { type: "input_text", text: "Transcribe all readable text from this image exactly. Preserve headings, question numbers, answer choices, marks, and line breaks. Return only the transcription." },
+        { type: "input_text", text: "Transcribe all readable text from this image exactly. Preserve headings, question numbers, answer choices, marks, and line breaks. Keep the original numbering and lettering of topics and subtopics (for example 1., 1.1, a), i.) exactly as printed, with each heading on its own line. Return only the transcription." },
         { type: "input_image", image_url: `data:${mimeType};base64,${base64Encode(imageBytes)}` },
       ] }],
     }),
@@ -240,37 +240,30 @@ function syllabusTopics(text: string): SyllabusTopic[] {
   const lines = text
     .replace(/\f/g, "\n")
     .split(/\r?\n/)
-    .map(line => line.replace(/\s+/g, " ").trim())
+    // Keep leading whitespace: it is meaningful in plain-text syllabi where
+    // subtopics are arranged by indentation rather than numbering.
+    .map(line => line.replace(/\t/g, "    ").replace(/[ \t]+$/, ""))
     .filter(Boolean);
 
-  for (const line of lines) {
-    // Only accept clearly numbered syllabus headings.
-    // Examples: 1. Numbers, 1.2 Integers, 1.2.1 Negative integers
-    const match = line.match(
-      /^(\d{1,2}(?:\.\d{1,2}){0,4})[.)]?\s+(.+)$/
-    );
-
-    if (!match) continue;
-
-    const reference = match[1];
-    const name = match[2]
+  const push = (rawName: string, reference: string | null, level: number): boolean => {
+    const name = rawName
       .replace(/^[-•*]\s*/, "")
       .replace(/\s+/g, " ")
+      .replace(/[.:;,]+$/, "")
       .trim();
-
-    const level = reference.split(".").length - 1;
     const words = name.split(/\s+/);
 
     // Reject fragments, long paragraphs, and likely extraction noise.
-    if (name.length < 5 || name.length > 90) continue;
-    if (words.length < 2 || words.length > 12) continue;
-    if (!/[A-Za-z]/.test(name)) continue;
-    if (!/[aeiou]/i.test(name)) continue;
-    if (/^(page|form|grade|chapter|unit|contents)\b/i.test(name)) continue;
-    if (/^[A-Z\s]+$/.test(name) && words.length < 2) continue;
+    if (name.length < 3 || name.length > 90) return false;
+    if (words.length < 1 || words.length > 12) return false;
+    if (!/[A-Za-z]/.test(name)) return false;
+    if (!/[aeiou]/i.test(name)) return false;
+    if (/^(page|form|grade|contents|paper|examination)\b/i.test(name)) return false;
+    if (/\b(syllabus|ministry|copyright)\b/i.test(name)) return false;
+    if (/^[A-Z\s]+$/.test(name) && words.length < 2) return false;
 
     const key = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return false;
 
     seen.add(key);
 
@@ -281,8 +274,58 @@ function syllabusTopics(text: string): SyllabusTopic[] {
 
     lastAtLevel[level] = topics.length - 1;
     lastAtLevel.length = level + 1;
+    return true;
+  };
 
+  // Level assigned to the most recent lettered/roman/bulleted subtopic run.
+  // Consecutive markers (a, b, c ...) stay siblings under the same parent
+  // instead of nesting deeper with each line.
+  let markerRunLevel: number | null = null;
+
+  for (const line of lines) {
     if (topics.length >= 150) break;
+
+    // Numbered headings keep their printed depth: "1. Numbers" (level 0),
+    // "1.2 Integers" (level 1), "1.2.1 Negative integers" (level 2).
+    const indentation = (line.match(/^\s*/) || [""])[0].length;
+    const content = line.trim();
+    const numbered = content.match(/^(\d{1,2}(?:\.\d{1,2}){0,4})[.)]?\s+(.+)$/);
+    if (numbered) {
+      const candidate = numbered[2].trim();
+      const level = numbered[1].split(".").length - 1;
+      if (push(candidate, numbered[1], level)) markerRunLevel = null;
+      continue;
+    }
+
+    // Labelled headings, e.g. "Topic 3: Linear Equations", "Unit 2 - Fractions".
+    const labelled = content.match(/^(?:topic|unit|chapter|theme|module|section)\s+(\d{1,2})\s*[:.\-–]\s*(.+)$/i);
+    if (labelled) {
+      if (push(labelled[2], labelled[1], 0)) markerRunLevel = null;
+      continue;
+    }
+
+    // Subtopics marked exactly as printed beneath a topic: "a)", "(b)",
+    // "i.", "(iii)", or bullet points nest under the current topic.
+    const lettered = content.match(/^\(?([a-z])[.)]\s+(.+)$/i);
+    const roman = lettered ? null : content.match(/^\(?((?:i{1,3}|iv|vi{0,3}|ix|x))[.)]\s+(.+)$/i);
+    const bulleted = lettered || roman ? null : (content.match(/^[•*]\s*(.+)$/) || content.match(/^[-–]\s+(.+)$/));
+    if (lettered || roman || bulleted) {
+      if (topics.length > 0) {
+        const marker = lettered?.[1] ?? roman?.[1] ?? null;
+        const rawName = (lettered?.[2] ?? roman?.[2] ?? bulleted?.[1]) || "";
+        const indentationLevel = Math.min(Math.floor(indentation / 2), 10);
+        const level = markerRunLevel !== null && indentationLevel <= markerRunLevel
+          ? markerRunLevel
+          : Math.max(1, indentationLevel);
+        if (push(rawName, marker, level)) markerRunLevel = level;
+      }
+      continue;
+    }
+
+    // Unnumbered ALL-CAPS headings are top-level topics, e.g. "NUMBER SYSTEMS".
+    if (/^[A-Z][A-Z0-9\s&',()/-]{2,79}$/.test(content) && !/[.:;,]$/.test(content)) {
+      if (push(content, null, 0)) markerRunLevel = null;
+    }
   }
 
   return topics;

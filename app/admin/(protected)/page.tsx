@@ -1011,20 +1011,52 @@ export default function AdminPage() {
     if (!material.storage_path) { toast.error('This syllabus has no stored PDF to transcribe.'); return; }
     setReprocessingSyllabusId(material.id);
     try {
-      const { data, error } = await supabase.functions.invoke('ingest-material', {
+      let extractedText: string | null = null;
+      let localOcrError: unknown = null;
+      try {
+        const { data: pdfFile, error: downloadError } = await supabase.storage
+          .from('content-materials')
+          .download(material.storage_path);
+        if (downloadError || !pdfFile) throw new Error(downloadError?.message || 'Could not download the stored syllabus PDF.');
+        const file = new File([pdfFile], material.title || 'syllabus.pdf', {
+          type: pdfFile.type || 'application/pdf',
+        });
+        extractedText = await extractPdfTextLocally(file, undefined, { forceOcr: true });
+      } catch (error) {
+        localOcrError = error;
+        console.warn('Local syllabus OCR failed; falling back to server OCR:', error);
+      }
+
+      const invokeTranscription = (text: string | null) => supabase.functions.invoke('ingest-material', {
         body: {
           material_id: material.id,
           storage_path: material.storage_path,
           input_mode: 'uploaded_file',
-          extracted_text: null,
+          extracted_text: text,
           subject_id: material.subject_id,
           grade: material.grade,
           material_type: material.material_type,
           transcription_only: true,
-          force_ocr: true,
+          force_ocr: !text,
         },
       });
-      if (error) throw new Error(`Syllabus transcription failed: ${await edgeFunctionErrorMessage(error, 'The syllabus could not be transcribed.')}`);
+      let { data, error } = await invokeTranscription(extractedText);
+      const responseStatus = error?.context instanceof Response ? error.context.status : null;
+      if (error && extractedText && (responseStatus === null || responseStatus >= 500)) {
+        const localTextError = await edgeFunctionErrorMessage(error, 'The locally transcribed text could not be saved.');
+        const serverRetry = await invokeTranscription(null);
+        data = serverRetry.data;
+        error = serverRetry.error;
+        if (error) {
+          const serverError = await edgeFunctionErrorMessage(error, 'The syllabus could not be transcribed.');
+          throw new Error(`Syllabus transcription failed: ${serverError} Local OCR text was rejected: ${localTextError}`);
+        }
+      }
+      if (error) {
+        const serverError = await edgeFunctionErrorMessage(error, 'The syllabus could not be transcribed.');
+        const localError = localOcrError instanceof Error ? ` Local OCR also failed: ${localOcrError.message}` : '';
+        throw new Error(`Syllabus transcription failed: ${serverError}${localError}`);
+      }
       if (!data?.success || !data.extracted_characters) throw new Error('The syllabus was processed but no text was extracted.');
       toast.success(`Syllabus transcribed: ${data.extracted_characters.toLocaleString()} characters found.`);
       fetchMaterials(); fetchCurriculum();

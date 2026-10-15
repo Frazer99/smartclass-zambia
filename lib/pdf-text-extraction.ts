@@ -46,9 +46,14 @@ async function loadTesseract(): Promise<TesseractBrowser> {
 
 /**
  * Extracts selectable text locally first, then OCRs image-only PDF pages in
- * the browser. Returns null only when the caller should use server fallback.
+ * the browser. Set forceOcr to OCR every page, including pages with text
+ * layers that may be incorrectly encoded.
  */
-export async function extractPdfTextLocally(file: File, onProgress?: ProgressCallback): Promise<string | null> {
+export async function extractPdfTextLocally(
+  file: File,
+  onProgress?: ProgressCallback,
+  options: { forceOcr?: boolean } = {},
+): Promise<string | null> {
   const [{ getDocument, GlobalWorkerOptions }] = await Promise.all([
     import('pdfjs-dist/legacy/build/pdf.mjs'),
   ]);
@@ -62,16 +67,59 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ')
-      .trim();
+    // Rebuild the printed line structure: pdf.js returns one item per text
+    // run, so runs on the same visual line are joined while a y-position
+    // change or an explicit end-of-line marker starts a new line. The
+    // syllabus topic parser relies on line breaks to tell topics and
+    // subtopics apart, so flattening everything with spaces would destroy
+    // the document's hierarchy.
+    const pageLines: string[] = [];
+    let currentLine = '';
+    let lastY: number | null = null;
+    let lineStartX: number | null = null;
+    let minX: number | null = null;
+    for (const item of content.items) {
+      if (!('str' in item)) continue;
+      const y = typeof item.transform?.[5] === 'number' ? item.transform[5] : null;
+      const x = typeof item.transform?.[4] === 'number' ? item.transform[4] : null;
+      if (x !== null) minX = minX === null ? x : Math.min(minX, x);
+      if (lastY !== null && y !== null && Math.abs(y - lastY) > 2 && currentLine.trim()) {
+        const indentation = lineStartX !== null && minX !== null
+          ? ' '.repeat(Math.min(20, Math.max(0, Math.round((lineStartX - minX) / 12) * 2)))
+          : '';
+        pageLines.push(`${indentation}${currentLine.trim()}`);
+        currentLine = '';
+        lineStartX = null;
+      }
+      if (!currentLine && x !== null) lineStartX = x;
+      if (currentLine && item.str && !currentLine.endsWith(' ') && !/^\s|^[.,;:!?%)\]]/.test(item.str)) {
+        currentLine += ' ';
+      }
+      currentLine += item.str;
+      lastY = y;
+      if (item.hasEOL && currentLine.trim()) {
+        const indentation = lineStartX !== null && minX !== null
+          ? ' '.repeat(Math.min(20, Math.max(0, Math.round((lineStartX - minX) / 12) * 2)))
+          : '';
+        pageLines.push(`${indentation}${currentLine.trim()}`);
+        currentLine = '';
+        lineStartX = null;
+        lastY = null;
+      }
+    }
+    if (currentLine.trim()) {
+      const indentation = lineStartX !== null && minX !== null
+        ? ' '.repeat(Math.min(20, Math.max(0, Math.round((lineStartX - minX) / 12) * 2)))
+        : '';
+      pageLines.push(`${indentation}${currentLine.trim()}`);
+    }
+    const pageText = pageLines.join('\n');
     selectablePages.push(pageText);
     onProgress?.(Math.round((pageNumber / pdf.numPages) * 30));
   }
 
   const weakPageNumbers = selectablePages
-    .map((pageText, index) => pageText.length < 20 ? index + 1 : null)
+    .map((pageText, index) => options.forceOcr || pageText.length < 20 ? index + 1 : null)
     .filter((pageNumber): pageNumber is number => pageNumber !== null);
   if (selectablePages.length === 0) {
     return null;
@@ -105,7 +153,7 @@ export async function extractPdfTextLocally(file: File, onProgress?: ProgressCal
       if (!context) throw new Error('Could not create a canvas for local OCR.');
       await page.render({ canvasContext: context, viewport }).promise;
       const result = await worker.recognize(canvas);
-      extractedPages[pageNumber - 1] = result.data.text;
+      extractedPages[pageNumber - 1] = result.data.text.trim() || extractedPages[pageNumber - 1];
       canvas.width = 1;
       canvas.height = 1;
       onProgress?.(30 + Math.round((weakPageNumbers.indexOf(pageNumber) + 1) / weakPageNumbers.length * 70));

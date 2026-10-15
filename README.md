@@ -103,8 +103,10 @@ private bucket. Admin uploads first extract selectable text locally in the
 browser. Image-only pages are rendered and OCR'd locally with Tesseract.js,
 then sent to the `ingest-material` Edge Function for search indexing, question
 parsing, embeddings, and syllabus topic generation. OpenAI OCR remains a
-server-side fallback when browser OCR is unavailable; set
-`OPENAI_OCR_MODEL` optionally to override the default `gpt-4o-mini` model. The
+server-side fallback when browser OCR is unavailable. Retrying transcription
+of an already stored syllabus OCRs every page locally first, then falls back
+to server OCR if browser extraction fails or the extracted text is rejected;
+set `OPENAI_OCR_MODEL` optionally to override the default `gpt-4o-mini` model. The
 `OPENAI_API_KEY` must be configured in the Supabase Edge Function secrets if
 that fallback or semantic embeddings are required.
 
