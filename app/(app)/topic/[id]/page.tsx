@@ -21,6 +21,7 @@ export default function TopicPage() {
   const [sessions, setSessions] = useState<LessonSession[]>([]);
   const [subject, setSubject] = useState<Subject | null>(null);
   const [videos, setVideos] = useState<(ContentMaterial & { playbackUrl: string })[]>([]);
+  const [subtopics, setSubtopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,13 +33,15 @@ export default function TopicPage() {
     if (!profile) return;
     const lessonIds = (await supabase.from('lessons').select('id').eq('topic_id', topicId)).data?.map((l: { id: string }) => l.id) || [];
 
-    const [topicRes, lessonsRes, sessionsRes, videosRes] = await Promise.all([
+    const [topicRes, lessonsRes, sessionsRes, videosRes, childrenRes] = await Promise.all([
       supabase.from('topics').select('*, subject:subjects(*)').eq('id', topicId).maybeSingle(),
       supabase.from('lessons').select('*').eq('topic_id', topicId).order('display_order'),
       supabase.from('lesson_sessions').select('*').eq('user_id', profile.id).in('lesson_id', lessonIds),
       supabase.from('content_materials').select('*').eq('topic_id', topicId).eq('material_type', 'video').in('status', ['approved', 'ingested']).order('uploaded_at', { ascending: false }),
+      supabase.from('topics').select('*').eq('parent_topic_id', topicId).order('display_order'),
     ]);
 
+    setSubtopics((childrenRes.data || []) as Topic[]);
     setTopic(topicRes.data as Topic);
     if (topicRes.data?.subject) setSubject(topicRes.data.subject as Subject);
     setLessons(lessonsRes.data as Lesson[] || []);
@@ -85,10 +88,10 @@ export default function TopicPage() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <button
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.push(topic.parent_topic_id ? `/topic/${topic.parent_topic_id}` : subject ? `/dashboard?subject=${subject.id}` : '/dashboard')}
           className="flex items-center gap-1.5 text-sm text-muted-board hover:text-chalk mb-3 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          <ArrowLeft className="h-4 w-4" /> {topic.parent_topic_id ? 'Back to topic' : 'Back to topics'}
         </button>
         <div className="flex items-center gap-2 mb-1">
           {subject && (
@@ -124,7 +127,30 @@ export default function TopicPage() {
         </section>
       )}
 
+      {subtopics.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-display text-lg font-semibold text-chalk">Subtopics</h2>
+          <p className="text-xs text-muted-board">Pick a subtopic, or study the whole topic using the lessons below.</p>
+          <div className="max-h-[24rem] space-y-2 overflow-y-auto pr-1">
+            {subtopics.map((sub) => (
+              <button
+                key={sub.id}
+                onClick={() => router.push(`/topic/${sub.id}`)}
+                className="card-board w-full px-5 py-3 flex items-center justify-between gap-3 text-left hover:border-gold/50 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-chalk text-sm font-semibold">{sub.name}</p>
+                  {sub.description && <p className="text-xs text-muted-board line-clamp-1">{sub.description}</p>}
+                </div>
+                <ArrowRight className="h-4 w-4 text-gold shrink-0" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Lessons */}
+      {subtopics.length > 0 && <h2 className="font-display text-lg font-semibold text-chalk">Whole topic lessons</h2>}
       <div className="max-h-[38rem] space-y-2 overflow-y-auto pr-1">
         {lessons.length === 0 && (
           <div className="card-board p-5 text-sm text-muted-board">

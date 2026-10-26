@@ -57,6 +57,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const fetchInFlight = useRef(false);
+  const [topicQuery, setTopicQuery] = useState('');
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +88,28 @@ export default function DashboardPage() {
     const announcementTimer = window.setInterval(() => fetchData(true), 15000);
     return () => window.clearInterval(announcementTimer);
   }, [profile]);
+
+  // Open a subject when linked via ?subject=; otherwise show the subject picker.
+  const requestedSubject = searchParams.get('subject');
+  useEffect(() => {
+    if (requestedSubject && subjects.some((s) => s.id === requestedSubject)) {
+      setActiveSubjectId(requestedSubject);
+    } else if (!requestedSubject) {
+      setActiveSubjectId('');
+    }
+  }, [requestedSubject, subjects]);
+
+  // Remind the pupil where they stopped, once per browser session.
+  useEffect(() => {
+    if (loading || !activeSession) return;
+    if (sessionStorage.getItem('resume-prompt-dismissed')) return;
+    setShowResumePrompt(true);
+  }, [loading, activeSession]);
+
+  const dismissResumePrompt = () => {
+    sessionStorage.setItem('resume-prompt-dismissed', '1');
+    setShowResumePrompt(false);
+  };
 
   useEffect(() => {
     if (!authLoading && user && !profile) {
@@ -166,11 +190,6 @@ export default function DashboardPage() {
     setActiveSession(sessionRes.data as LessonSession | null);
     setExamDates(Object.fromEntries((examDatesRes.data || []).map((row: any) => [row.subject_id, row.exam_date])));
 
-    if (gradeSubjects.length > 0) {
-      const requestedSubject = searchParams.get('subject');
-      setActiveSubjectId(gradeSubjects.some((subject) => subject.id === requestedSubject) ? requestedSubject! : gradeSubjects[0].id);
-    }
-
     setLessons((lessonsRes.data as Lesson[] || []).filter((lesson) => tops.some((topic) => topic.id === lesson.topic_id)));
 
       setLoading(false);
@@ -236,7 +255,21 @@ export default function DashboardPage() {
   const accuracy = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 0;
 
   // Filter topics by active subject (still used for the topic grid below)
-  const subjectTopics = topics.filter((t) => t.subject_id === activeSubjectId);
+  // Top-level topics only; subtopics are shown on the topic page. A topic whose
+  // parent isn't in this grade's list is treated as top-level.
+  const topicIds = new Set(topics.map((t) => t.id));
+  const normalizedQuery = topicQuery.trim().toLowerCase();
+  const subjectTopics = topics.filter((t) => {
+    if (t.subject_id !== activeSubjectId) return false;
+    const isTopLevel = !t.parent_topic_id || !topicIds.has(t.parent_topic_id);
+    if (!normalizedQuery) return isTopLevel;
+    // While searching, match subtopics too so they can be reached directly.
+    return `${t.name} ${t.description || ''}`.toLowerCase().includes(normalizedQuery);
+  });
+  const subtopicCount = (topicId: string) => topics.filter((t) => t.parent_topic_id === topicId).length;
+  const resumeTopic = activeSession
+    ? topics.find((t) => t.id === (activeSession as any).lesson?.topic_id)
+    : null;
 
   // Adaptive recommendation runs across ALL of the pupil's topics for their
   // grade, not just the active subject tab — a real tutor doesn't forget
@@ -387,8 +420,8 @@ export default function DashboardPage() {
                 Start lesson →
               </button>
             ) : (
-              <Link href="/dashboard">
-                <button className="btn-gold">Browse topics →</button>
+              <Link href="#subjects" className="btn-gold">
+                Browse topics →
               </Link>
             )}
           </div>
@@ -417,39 +450,62 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Subject tabs */}
-      {subjects.length > 0 && <div className="flex gap-2 flex-wrap">
-        {subjects.map((s) => {
-          const Icon = iconMap[s.icon] || GraduationCap;
-          const isActive = s.id === activeSubjectId;
-          return (
-            <button
-              key={s.id}
-              onClick={() => setActiveSubjectId(s.id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold border-2 transition-all ${
-                isActive
-                  ? 'border-transparent text-ink'
-                  : 'border-white/10 text-muted-board hover:text-chalk hover:border-white/20'
-              }`}
-              style={isActive ? { background: s.color } : undefined}
-            >
-              <Icon className="h-4 w-4" />
-              {s.name}
-            </button>
-          );
-        })}
+      {/* Subjects */}
+      {subjects.length > 0 && !activeSubject && <div id="subjects" className="scroll-mt-6">
+        <h2 className="font-display text-lg font-semibold text-chalk mb-3">Choose a subject</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {subjects.map((s) => {
+            const Icon = iconMap[s.icon] || GraduationCap;
+            const count = topics.filter((t) => t.subject_id === s.id && (!t.parent_topic_id || !topicIds.has(t.parent_topic_id))).length;
+            return (
+              <button
+                key={s.id}
+                onClick={() => { setTopicQuery(''); router.push(`/dashboard?subject=${s.id}`); }}
+                className="card-board p-5 flex items-center gap-4 text-left hover:border-gold/50 transition-colors"
+              >
+                <div className="rounded-xl p-3" style={{ background: `${s.color}30`, color: s.color }}>
+                  <Icon className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-chalk">{s.name}</p>
+                  <p className="text-xs text-muted-board">{count} topic{count === 1 ? '' : 's'}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gold" />
+              </button>
+            );
+          })}
+        </div>
       </div>}
 
-      {/* Topics for active subject */}
-      {subjects.length > 0 && <div>
+      {/* Topics for the chosen subject */}
+      {activeSubject && <div id="topics" className="scroll-mt-6">
+        <button
+          onClick={() => { setTopicQuery(''); router.push('/dashboard'); }}
+          className="text-sm text-muted-board hover:text-chalk mb-3 transition-colors"
+        >
+          ← All subjects
+        </button>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-lg font-semibold text-chalk">
-            {activeSubject?.name} Topics
+            {activeSubject.name} Topics
           </h2>
           <span className="text-xs text-muted-board font-mono-sc">
             Form {profile.grade} &middot; {subjectTopics.length} topics
           </span>
         </div>
+        <div className="card-board px-4 py-2.5 flex items-center gap-3 mb-3">
+          <Search className="h-4 w-4 text-gold shrink-0" />
+          <input
+            type="text"
+            value={topicQuery}
+            onChange={(e) => setTopicQuery(e.target.value)}
+            placeholder={`Search ${activeSubject.name} topics...`}
+            className="flex-1 bg-transparent text-chalk placeholder:text-muted-board text-sm focus:outline-none"
+          />
+        </div>
+        {subjectTopics.length === 0 && (
+          <p className="text-sm text-muted-board">No topics match your search.</p>
+        )}
         <div className="max-h-[38rem] space-y-3 overflow-y-auto pr-1">
           {subjectTopics.map((topic) => {
               const tp = progress.find((p) => p.topic_id === topic.id);
@@ -467,7 +523,7 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <span className="font-semibold text-ink text-sm">{topic.name}</span>
                       {topic.source_material_id && (
-                        <span className="block text-[10px] text-ink/50 mt-0.5">From uploaded syllabus</span>
+                        <span className="block text-[10px] text-ink/50 mt-0.5">{subtopicCount(topic.id) > 0 ? `${subtopicCount(topic.id)} subtopics` : 'From uploaded syllabus'}</span>
                       )}
                     </div>
                     <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ background: color }} />
@@ -508,6 +564,32 @@ export default function DashboardPage() {
           <StatNote value={String(topics.length)} label="Topics" />
         </div>
       </div>
+
+      {showResumePrompt && activeSession && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+          <div className="card-board w-full max-w-sm p-6">
+            <h2 id="resume-title" className="font-display text-lg font-semibold text-chalk mb-1">Welcome back</h2>
+            <p className="text-sm text-muted-board mb-1">You stopped at:</p>
+            <p className="text-chalk font-semibold">{(activeSession as any).lesson?.title}</p>
+            {resumeTopic && <p className="text-xs text-muted-board mb-4">{resumeTopic.name}</p>}
+            <p className="text-sm text-muted-board mb-4 mt-2">Would you like to continue from where you ended?</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={() => { dismissResumePrompt(); router.push(`/lesson/${activeSession.id}`); }}
+                className="btn-gold flex-1 py-2 text-sm"
+              >
+                Continue →
+              </button>
+              <button
+                onClick={dismissResumePrompt}
+                className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-chalk hover:bg-white/5"
+              >
+                Choose another topic
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
